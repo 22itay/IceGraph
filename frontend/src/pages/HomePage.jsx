@@ -10,7 +10,7 @@ export default function HomePage() {
   useEffect(() => {
     const savedHistory = localStorage.getItem('tableHistory')
     if (savedHistory) {
-      setHistory(JSON.parse(savedHistory))
+      setHistory(JSONbig({ storeAsString: true }).parse(savedHistory))
     }
   }, [])
 
