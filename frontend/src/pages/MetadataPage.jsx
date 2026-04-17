@@ -138,23 +138,6 @@ export default function MetadataPage() {
           </div>
         </Section>
 
-        {currentSchema && (
-          <Section title={`Current Schema — ID ${currentSchema['schema-id']}`}>
-            {currentSchema.fields?.length > 0 ? (
-              <div>
-                <div className="flex items-center gap-3 pb-1 mb-1 border-b border-[#2d3748]">
-                  <span className="text-[0.6rem] font-bold text-slate-500 uppercase w-6 text-right shrink-0">#</span>
-                  <span className="text-[0.6rem] font-bold text-slate-500 uppercase min-w-[120px]">Name</span>
-                  <span className="text-[0.6rem] font-bold text-slate-500 uppercase">Type</span>
-                </div>
-                {currentSchema.fields.map(f => <FieldRow key={f['field-id'] ?? f.name} field={f} />)}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-400 italic">No fields defined.</p>
-            )}
-          </Section>
-        )}
-
         {defaultSpec && (
           <Section title={`Partition Spec — ID ${defaultSpec['spec-id']}`}>
             {defaultSpec.fields?.length > 0 ? (
@@ -225,6 +208,23 @@ export default function MetadataPage() {
                 </div>
               ))}
             </div>
+          </Section>
+        )}
+
+        {currentSchema && (
+          <Section title={`Current Schema — ID ${currentSchema['schema-id']}`}>
+            {currentSchema.fields?.length > 0 ? (
+              <div>
+                <div className="flex items-center gap-3 pb-1 mb-1 border-b border-[#2d3748]">
+                  <span className="text-[0.6rem] font-bold text-slate-500 uppercase w-6 text-right shrink-0">#</span>
+                  <span className="text-[0.6rem] font-bold text-slate-500 uppercase min-w-[120px]">Name</span>
+                  <span className="text-[0.6rem] font-bold text-slate-500 uppercase">Type</span>
+                </div>
+                {currentSchema.fields.map(f => <FieldRow key={f['field-id'] ?? f.name} field={f} />)}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 italic">No fields defined.</p>
+            )}
           </Section>
         )}
 

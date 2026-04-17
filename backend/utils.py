@@ -167,6 +167,9 @@ def get_json_metadata_from_path(metadata_path: str) -> Dict[str, Any]:
 
 
 def update_col_metric(source_list, metric_name, column_metrics):
+    if source_list is None:
+        return
+
     for row in source_list:
         col_id = row.key
         if col_id not in column_metrics:

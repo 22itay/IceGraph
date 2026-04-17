@@ -296,7 +296,7 @@ export default function TimelinePage() {
                   {labelFor(selected.type)}
                 </div>
                 <div className="text-xs font-mono text-[#e2e8f0] mt-0.5 break-all">
-                  {shortFileName(selected.details.file_path)}
+                  {selected.details.file_path}
                 </div>
                 {formatTs(selected.details.timestamp) && (
                   <div className="text-xs text-slate-500 mt-0.5">

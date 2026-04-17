@@ -58,7 +58,7 @@ export default function MetadataStructured({ metadata, onSelect, selectedId }) {
   return (
     <div className="py-2">
       {renderBoxes(metadata.schemas, 'schema-id', 'Schema', metadata['current-schema-id'], 'schema')}
-      {renderBoxes(metadata['partition-specs'], 'spec-id', 'Spec', metadata['default-spec-id'], 'spec')}
+      {renderBoxes(metadata['partition-specs'], 'spec-id', 'Partition', metadata['default-spec-id'], 'spec')}
       {renderBoxes(metadata['sort-orders'], 'order-id', 'Order', metadata['default-sort-order-id'], 'order')}
     </div>
   )
