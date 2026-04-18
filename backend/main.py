@@ -33,17 +33,24 @@ def _safe_update_job(job_id, **fields):
             jobs[job_id].update(fields)
 
 
-def _cleanup_in_flight(job_id):
+def _cleanup_job(job_id):
     with job_lock:
         jobs.pop(job_id, None)
-    logger.info(f"Removed in-flight key {job_id}")
+    logger.info(f"Removed job {job_id}")
 
 
-def _schedule_cleanup(job_id):
-    threading.Timer(
+def _schedule_cleanup(job_id, is_in_lock_block=False):
+    timer = threading.Timer(
         COMPUTE_CLEANUP_TIME_SECONDS,
-        lambda job_id=job_id: _cleanup_in_flight(job_id),
-    ).start()
+        lambda job_id=job_id: _cleanup_job(job_id),
+    )
+
+    if is_in_lock_block:
+        jobs[job_id]["timer"] = timer
+    else:
+        _safe_update_job(job_id, timer=timer)
+
+    timer.start()
 
 
 def _compute_graph_background(job_id, table_name, start_snapshot_id, end_snapshot_id):
@@ -125,8 +132,16 @@ def graph_data():
     response = {"key": job_id, "status": "processing"}
 
     with job_lock:
-        if job_id in jobs:
-            logger.info(f"Duplicate request for {job_id}")
+        job = jobs.get(job_id)
+        if job:
+            if job["status"] == "completed":
+                job["timer"].cancel()
+                _schedule_cleanup(job_id, is_in_lock_block=True)
+                logger.info(f"Job {job_id} completed, extended cleanup timer")
+
+            else:
+                logger.info(f"Duplicate request for {job_id}")
+
             return jsonify(response), 202
 
         jobs[job_id] = response
@@ -161,7 +176,7 @@ def get_job_status(job_id):
         return jsonify({"error": job.get("error", "Unknown error")}), 400
 
     else:
-        return jsonify(job), 202
+        return jsonify({"key": job_id, "status": "processing"}), 202
 
 
 if __name__ == "__main__":

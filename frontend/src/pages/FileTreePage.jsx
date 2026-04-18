@@ -115,10 +115,10 @@ function FileRow({ filePath, checkedFiles, toggleFile, navigate, tabSearch }) {
       />
       <span
         className={`text-xs font-mono transition-colors overflow-hidden whitespace-nowrap flex-1 ${checkedFiles.has(filePath) ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-200'}`}
-        style={{ direction: 'rtl', textOverflow: 'ellipsis' }}
+        style={{ direction: 'rtl', textOverflow: 'ellipsis', textAlign: 'left' }}
         title={filePath}
       >
-        {filePath}
+        {'\u202A' + filePath + '\u202C'}
       </span>
       <button
         onClick={e => { e.stopPropagation(); navigate(`/table/graph${tabSearch}`, { state: { selectNodeId: filePath } }) }}
