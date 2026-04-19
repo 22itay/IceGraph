@@ -9,11 +9,12 @@ import {
   DELETED_DATA_FILE_CONNECTION_COLOR,
   NODE_STYLE_MAP,
 } from '../graphConstants'
+import { getCachedData } from '../utils/cache_utils'
 
 export default function TableLayout() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { detailsOpen, setDetailsOpen, selectionDetail, setSelectionDetail } = useTableSpecs()
+  const { detailsOpen, setDetailsOpen, selectionDetail, setSelectionDetail, setRawData } = useTableSpecs()
   const detailPanelRef = useRef(null)
 
   useEffect(() => {
@@ -28,7 +29,9 @@ export default function TableLayout() {
   const startSnapshot = searchParams.get('start_snapshot_id') || ''
   const endSnapshot = searchParams.get('end_snapshot_id') || ''
   const isDup = searchParams.get('dup') === '1'
-  const cacheKey = `graphData_${tableName}_${startSnapshot}_${endSnapshot}`
+  const cacheKey = isDup
+    ? window.location.href
+    : `graphData_${tableName}_${startSnapshot}_${endSnapshot}`
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -101,9 +104,9 @@ export default function TableLayout() {
       const res = await fetch(`/api/v1/graph-data/${jid}`)
       if (res.status === 200) {
         const text = await res.text()
+        setRawData(text)
         const data = JSONbig({ storeAsString: true }).parse(text)
 
-        sessionStorage.setItem(cacheKey, text)
         setGraphData(buildGraphData(data))
         setLoading(false)
         setJobId(null)
@@ -134,15 +137,30 @@ export default function TableLayout() {
     }
 
     if (isDup) {
-      const cached = sessionStorage.getItem(cacheKey)
-      if (cached) {
-        setGraphData(buildGraphData(JSONbig({ storeAsString: true }).parse(cached)))
-        setLoading(false)
-        const cleanUrl = new URL(window.location.href)
-        cleanUrl.searchParams.delete('dup')
-        history.replaceState(history.state, '', cleanUrl.toString())
-        return
-      }
+      (async () => {
+        try {
+          const cached = await getCachedData(cacheKey)
+          if (cached) {
+            setRawData(cached)
+            setGraphData(buildGraphData(JSONbig({ storeAsString: true }).parse(cached)))
+            setLoading(false)
+
+            const cleanUrl = new URL(window.location.href)
+            cleanUrl.searchParams.delete('dup')
+            cleanUrl.searchParams.delete('cache_id')
+            history.replaceState(history.state, '', cleanUrl.toString())
+            return
+          }
+          else {
+            throw new Error('No cached data found.')
+          }
+        } catch (err) {
+          console.error('Failed to restore from cache:', err)
+          setError('No cached data found.')
+          setLoading(false)
+        }
+      })()
+      return
     }
 
     submitGraphJob(tableName, startSnapshot, endSnapshot)

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useMatch, useNavigate, useSearchParams } from 'react-router-dom'
-import { useTableSpecs } from '../context/TableSpecsContext'
 import logo from '../assets/icegraph.png'
+import { useTableSpecs } from '../context/TableSpecsContext'
+import { cacheData, clearCachedData } from '../utils/cache_utils'
 
 export default function NavBar() {
   const location = useLocation()
@@ -9,9 +10,10 @@ export default function NavBar() {
   const navigate = useNavigate()
   const isTablePage = useMatch('/table/*')
   const tableName = searchParams.get('table')
-  const { detailsOpen, setDetailsOpen } = useTableSpecs()
+  const { detailsOpen, setDetailsOpen, rawData } = useTableSpecs()
   const [aboutOpen, setAboutOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isDuplicating, setIsDuplicating] = useState(false)
   const navRef = useRef(null)
 
   useEffect(() => {
@@ -31,6 +33,34 @@ export default function NavBar() {
   useEffect(() => { setMenuOpen(false) }, [location.pathname, location.search])
 
   const tabSearch = location.search
+
+  const handleDuplicateTab = async () => {
+    if (isDuplicating || !rawData) return
+    setIsDuplicating(true)
+
+    const url = new URL(window.location.href)
+    url.searchParams.set('dup', '1')
+    url.searchParams.set('cache_id', crypto.randomUUID())
+
+    const cacheKey = url.toString()
+
+    const newTab = window.open('about:blank', '_blank')
+
+    try {
+      await cacheData(cacheKey, rawData)
+      if (newTab) {
+        newTab.location.href = url.toString()
+      }
+    } catch (err) {
+      console.error('Failed to duplicate tab:', err)
+      if (newTab) newTab.close()
+    }
+
+    setTimeout(async () => {
+      await clearCachedData(cacheKey).catch(console.error)
+      setIsDuplicating(false)
+    }, 2000)
+  }
 
   const tabClass = ({ isActive }) =>
     `text-sm font-medium px-1 py-0.5 border-b-2 transition ${isActive
@@ -91,15 +121,15 @@ export default function NavBar() {
 
               <div className="ml-auto flex items-center gap-3">
                 <button
-                  className="text-sm font-medium text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-3 py-1 rounded-md transition"
-                  title="Opens this view in a new tab using cached data, no backend request is made"
-                  onClick={() => {
-                    const url = new URL(window.location.href)
-                    url.searchParams.set('dup', '1')
-                    window.open(url.toString(), '_blank')
-                  }}
+                  className={`text-sm font-medium border border-slate-600 px-3 py-1 rounded-md transition ${(isDuplicating || !rawData)
+                    ? 'opacity-50 cursor-not-allowed text-slate-500'
+                    : 'text-slate-400 hover:text-white hover:border-slate-400'
+                    }`}
+                  title={!rawData ? "Wait for data to load..." : "Opens this view in a new tab using cached data, no backend request is made"}
+                  onClick={handleDuplicateTab}
+                  disabled={isDuplicating || !rawData}
                 >
-                  Duplicate tab
+                  {isDuplicating ? 'Duplicating...' : 'Duplicate tab'}
                 </button>
 
                 <div className="w-px h-4 bg-slate-700" />
@@ -158,16 +188,18 @@ export default function NavBar() {
             </button>
 
             <button
-              className="text-sm font-medium text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-3 py-2 rounded-md transition text-left"
-              title="Opens this view in a new tab using cached data, no backend request is made"
+              className={`text-sm font-medium border border-slate-600 px-3 py-2 rounded-md transition text-left ${(isDuplicating || !rawData)
+                ? 'opacity-50 cursor-not-allowed text-slate-500'
+                : 'text-slate-400 hover:text-white hover:border-slate-400'
+                }`}
+              title={!rawData ? "Wait for data to load..." : "Opens this view in a new tab using cached data, no backend request is made"}
               onClick={() => {
-                const url = new URL(window.location.href)
-                url.searchParams.set('dup', '1')
-                window.open(url.toString(), '_blank')
+                handleDuplicateTab()
                 setMenuOpen(false)
               }}
+              disabled={isDuplicating || !rawData}
             >
-              Duplicate tab
+              {isDuplicating ? 'Duplicating...' : 'Duplicate tab'}
             </button>
 
             <button
