@@ -5,8 +5,6 @@ import {
   UI_NEWLINE,
   UI_SECTION_NEWLINE,
   NODE_STYLE_MAP,
-  BRANCH_CONNECTION_COLOR,
-  DELETED_DATA_FILE_CONNECTION_COLOR,
   FileType,
   GRAPH_SETTINGS,
 } from '../graphConstants'
@@ -17,48 +15,73 @@ const rgbToHex = (rgb) => {
   return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('').toUpperCase()
 }
 
-// Helper to find related nodes (lineage)
-function getLineage(nodeId, nodes, links) {
+// SNAPSHOT TRAVERSAL: Builds static connection maps before traversing to ensure 100% accuracy
+function getLineage(nodeId, links) {
   const relatedNodes = new Set([String(nodeId)])
-  const queue = [String(nodeId)]
 
-  const adj = {}
+  // 1. Take a static snapshot of all connections immediately
+  const toLinks = {}
+  const fromLinks = {}
+
   links.forEach(l => {
-    const s = String(l.source.id || l.source)
-    const t = String(l.target.id || l.target)
-    if (!adj[s]) adj[s] = []
-    if (!adj[t]) adj[t] = []
-    adj[s].push(t)
-    adj[t].push(s)
+    const s = String(l.source.id ?? l.source)
+    const t = String(l.target.id ?? l.target)
+
+    if (!toLinks[s]) toLinks[s] = []
+    if (!fromLinks[t]) fromLinks[t] = []
+
+    toLinks[s].push(t)
+    fromLinks[t].push(s)
   })
 
-  while (queue.length > 0) {
-    const curr = queue.shift()
-    if (adj[curr]) {
-      adj[curr].forEach(neighbor => {
-        if (!relatedNodes.has(neighbor)) {
-          relatedNodes.add(neighbor)
-          queue.push(neighbor)
-        }
-      })
-    }
+  // 2. Traverse against the static snapshot, not the dynamic links array
+  const traverse = (currentId, direction) => {
+    const neighbors = direction === 'to' ? (toLinks[currentId] || []) : (fromLinks[currentId] || [])
+    neighbors.forEach(neighborId => {
+      if (!relatedNodes.has(neighborId)) {
+        relatedNodes.add(neighborId)
+        traverse(neighborId, direction)
+      }
+    })
   }
+
+  traverse(String(nodeId), 'to')
+  traverse(String(nodeId), 'from')
+
   return relatedNodes
 }
 
-// Component removed sigma-style helpers
-
 export default function GraphPage() {
-  const { nodes: rawNodes, edges: rawEdges, metadata, errors } = useOutletContext()
+  const { nodes: rawNodes, edges: rawEdges, errors } = useOutletContext()
 
   const location = useLocation()
   const fgRef = useRef()
-  const hasInitiallyZoomed = useRef(false)
+  const hasInitialized = useRef(false)
 
   const [highlightNodes, setHighlightNodes] = useState(new Set())
   const [isInspectMode, setIsInspectMode] = useState(true)
   const [isFullView, setIsFullView] = useState(true)
   const [stickyNode, setStickyNode] = useState(null)
+
+  const isInspectModeRef = useRef(isInspectMode)
+  useEffect(() => {
+    isInspectModeRef.current = isInspectMode
+  }, [isInspectMode])
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') setStickyNode(null) }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [])
+
+  useEffect(() => {
+    if (errors && Object.keys(errors).length > 0) {
+      const summary = Object.entries(errors)
+        .map(([file, err]) => `• ${file.split('/').pop()}: ${err}`)
+        .join('\n')
+      alert(`⚠️ IceGraph: ${Object.keys(errors).length} Errors Detected\n\n${summary}`)
+    }
+  }, [errors])
 
   // Process data for react-force-graph
   const graphData = useMemo(() => {
@@ -83,7 +106,6 @@ export default function GraphPage() {
       color: e.color || '#999'
     }))
 
-    // Apply hierarchical layout logic by setting fixed coordinates (fx, fy)
     const { levelSeparation, nodeSpacing } = GRAPH_SETTINGS
     const levelsMap = {}
     processedNodes.forEach(n => {
@@ -98,6 +120,7 @@ export default function GraphPage() {
       nodes.forEach((node, i) => {
         const fx = x
         const fy = (i * nodeSpacing) - (totalHeight / 2)
+        // Store original positions for snap-back capabilities
         node.fx = node.originalFx = fx
         node.fy = node.originalFy = fy
       })
@@ -115,86 +138,129 @@ export default function GraphPage() {
   const resetView = useCallback(() => {
     deselectNode()
 
-    // Restore original positions for all nodes
+    // Snap all dragged/moved nodes back to their original calculated places
     graphData.nodes.forEach(node => {
       node.fx = node.originalFx
       node.fy = node.originalFy
+      node.x = node.originalFx
+      node.y = node.originalFy
+      node.vx = 0
+      node.vy = 0
     })
 
+    setIsFullView(true)
+    fgRef.current?.d3ReheatSimulation()
     fgRef.current?.zoomToFit(500, 50)
   }, [deselectNode, graphData])
 
   useEffect(() => {
-    // Reheat simulation on mount to ensure fluid interaction from the first load
-    if (fgRef.current) {
-      fgRef.current.d3ReheatSimulation()
+    if (!history.state || !('graphSelection' in history.state)) {
+      history.replaceState({ graphSelection: null }, '')
     }
-  }, [])
 
+    const handlePopState = (e) => {
+      if (!e.state || !('graphSelection' in e.state)) return
+      const nodeId = e.state.graphSelection
+
+      if (nodeId === null) {
+        resetView()
+        return
+      }
+
+      const node = graphData.nodes.find(n => String(n.id) === String(nodeId))
+      if (node) {
+        if (!isInspectModeRef.current) {
+          const lineage = getLineage(node.id, graphData.links)
+          setHighlightNodes(lineage)
+          fgRef.current?.centerAt(node.fx ?? node.x, node.fy ?? node.y, 500)
+        }
+        setStickyNode(node)
+        setIsFullView(false)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [graphData, resetView])
+
+  // Initial Load focusing
   useEffect(() => {
-    if (!fgRef.current || graphData.nodes.length === 0) return
+    if (!fgRef.current || graphData.nodes.length === 0 || hasInitialized.current) return
+    hasInitialized.current = true
+    fgRef.current.d3ReheatSimulation()
 
     const initialNodeId = location.state?.selectNodeId || history.state?.graphSelection
     if (initialNodeId) {
       const node = graphData.nodes.find(n => String(n.id) === String(initialNodeId))
       if (node) {
-        handleNodeClick(node)
+        if (!isInspectModeRef.current) {
+          const lineage = getLineage(node.id, graphData.links)
+          setHighlightNodes(lineage)
+        }
+        setStickyNode(node)
+        setIsFullView(false)
+
+        if (location.state?.selectNodeId) {
+          history.replaceState({ graphSelection: initialNodeId }, '')
+        }
+
+        setTimeout(() => {
+          fgRef.current?.centerAt(node.originalFx ?? node.fx ?? node.x, node.originalFy ?? node.fy ?? node.y, 500)
+        }, 100)
       }
+    } else {
+      // Explicitly trigger the reset logic to ensure perfect alignment at the start
+      setTimeout(() => resetView(), 100)
     }
-  }, [graphData, location.state])
+  }, [graphData, location.state, resetView])
+
   const handleNodeClick = useCallback((node) => {
     if (!isInspectMode) {
-      const lineage = getLineage(node.id, graphData.nodes, graphData.links)
+      const lineage = getLineage(node.id, graphData.links)
       setHighlightNodes(lineage)
       setIsFullView(false)
-      fgRef.current.centerAt(node.fx, node.fy, 500)
+      fgRef.current.centerAt(node.fx ?? node.x, node.fy ?? node.y, 500)
     }
     setStickyNode(node)
     history.pushState({ graphSelection: node.id }, '')
   }, [isInspectMode, graphData])
 
-  const paintNode = useCallback((node, ctx, globalScale) => {
+  const paintNode = useCallback((node, ctx) => {
     const label = node.label || String(node.id)
     const fontSize = 80
 
     ctx.font = `500 ${fontSize}px "Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"`
-
-    const isHighlighted = highlightNodes.size === 0 || highlightNodes.has(String(node.id))
-    const color = isHighlighted ? node.color : '#333333'
 
     const textMetrics = ctx.measureText(label)
     const padding = 40
     const w = textMetrics.width + padding * 2
     const h = fontSize + padding
 
-    // Draw Background Pill
-    ctx.beginPath()
-    // Align to pixel grid for sharpness
     const x = Math.round(node.x - w / 2)
     const y = Math.round(node.y - h / 2)
+
+    ctx.beginPath()
     if (ctx.roundRect) {
       ctx.roundRect(x, y, w, h, 4)
     } else {
-      ctx.rect(x, y, w, h) // Fallback to rect if roundRect missing
+      ctx.rect(x, y, w, h)
     }
 
-    ctx.fillStyle = isHighlighted ? color : '#2d3748'
+    ctx.fillStyle = node.color || '#2d3748'
     ctx.fill()
 
-    ctx.strokeStyle = isHighlighted ? '#ffffff' : '#4a5568'
+    ctx.strokeStyle = '#ffffff'
     ctx.lineWidth = 2
     ctx.stroke()
 
-    // Draw Text
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillStyle = isHighlighted ? '#ffffff' : '#a0aec0'
+    ctx.fillStyle = '#ffffff'
     ctx.fillText(label, node.x, node.y)
 
-    // Cache metrics for pointer area
     node.__pillW = w
     node.__pillH = h
-  }, [highlightNodes])
+  }, [])
 
   const paintPointerArea = useCallback((node, color, ctx) => {
     const w = node.__pillW || 40
@@ -222,7 +288,7 @@ export default function GraphPage() {
 
   return (
     <div
-      className="relative w-full flex-1 overflow-hidden"
+      className="relative w-full flex-1 min-h-0 overflow-hidden"
       style={{
         backgroundColor: '#0d1117',
         backgroundImage: 'radial-gradient(circle, #2d3748 1px, transparent 1px)',
@@ -230,40 +296,32 @@ export default function GraphPage() {
       }}
     >
       <ForceGraph2D
-        key={location.pathname + location.search}
         ref={fgRef}
         graphData={graphData}
-        backgroundColor="#00000000" // transparent to see background image
+        backgroundColor="#00000000"
         nodeLabel={() => ""}
         nodeCanvasObject={paintNode}
         nodePointerAreaPaint={paintPointerArea}
-        linkWidth={1}
-        nodeColor={n => {
-          if (highlightNodes.size > 0 && !highlightNodes.has(String(n.id))) return '#333'
-          return n.color
-        }}
-        linkColor={l => {
+
+        nodeVisibility={n => highlightNodes.size === 0 || highlightNodes.has(String(n.id))}
+        linkVisibility={l => {
+          if (highlightNodes.size === 0) return true
           const s = String(l.source.id || l.source)
           const t = String(l.target.id || l.target)
-          if (highlightNodes.size > 0 && !(highlightNodes.has(s) && highlightNodes.has(t))) return '#222'
-          return l.color
+          return highlightNodes.has(s) && highlightNodes.has(t)
         }}
+
+        linkWidth={1}
+        linkColor={l => l.color}
         linkDirectionalArrowLength={3}
         linkDirectionalArrowRelPos={1}
+
         onNodeClick={handleNodeClick}
+        onBackgroundClick={() => { }}
         onNodeDrag={() => setIsFullView(false)}
         onNodeDragEnd={() => setIsFullView(false)}
-        onBackgroundClick={deselectNode}
         onZoom={() => setIsFullView(false)}
-        onDrag={() => setIsFullView(false)}
-        onEngineStop={() => {
-          if (!hasInitiallyZoomed.current && !stickyNode) {
-            fgRef.current?.zoomToFit(500, 50)
-            hasInitiallyZoomed.current = true
-            setIsFullView(false)
-          }
-        }}
-        d3AlphaDecay={0.05} // Slightly slower decay for better interactivity
+        d3AlphaDecay={0.05}
       />
 
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-[9999] font-sans w-[200px]">
