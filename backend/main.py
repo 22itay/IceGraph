@@ -54,6 +54,7 @@ def _schedule_cleanup(job_id, is_in_lock_block=False):
         compute_cleanup_time_seconds,
         lambda job_id=job_id: _cleanup_job(job_id),
     )
+    timer.daemon = True
 
     if is_in_lock_block:
         jobs[job_id]["timer"] = timer
@@ -190,4 +191,8 @@ def get_job_status(job_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=APPLICATION_PORT)
+    try:
+        app.run(host="0.0.0.0", port=APPLICATION_PORT)
+    finally:
+        logger.info("Exiting program and killing all worker threads.")
+        os._exit(0)
