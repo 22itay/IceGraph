@@ -149,6 +149,7 @@ export default function GraphPage() {
     })
 
     setIsFullView(true)
+    sessionStorage.removeItem('last_graph_selection')
     fgRef.current?.d3ReheatSimulation()
     fgRef.current?.zoomToFit(500, 50)
   }, [deselectNode, graphData])
@@ -187,19 +188,22 @@ export default function GraphPage() {
     hasInitialized.current = true
     fgRef.current.d3ReheatSimulation()
 
-    const initialNodeId = location.state?.selectNodeId || history.state?.graphSelection
-    if (initialNodeId) {
-      const node = graphData.nodes.find(n => String(n.id) === String(initialNodeId))
+    const historyId = history.state?.graphSelection;
+    const locationId = location.state?.selectNodeId;
+    const sessionId = sessionStorage.getItem('last_graph_selection');
+
+    const targetNodeId = historyId || locationId || sessionId;
+
+    if (targetNodeId) {
+      const node = graphData.nodes.find(n => String(n.id) === String(targetNodeId))
       if (node) {
-        if (!isInspectModeRef.current) {
-          const lineage = getLineage(node.id, graphData.links)
-          setHighlightNodes(lineage)
-        }
+        const lineage = getLineage(node.id, graphData.links)
+        setHighlightNodes(lineage)
         setStickyNode(node)
         setIsFullView(false)
 
         if (location.state?.selectNodeId) {
-          history.replaceState({ graphSelection: initialNodeId }, '')
+          history.replaceState({ graphSelection: targetNodeId }, '')
         }
 
         setTimeout(() => {
@@ -217,6 +221,7 @@ export default function GraphPage() {
       const lineage = getLineage(node.id, graphData.links)
       setHighlightNodes(lineage)
       setIsFullView(false)
+      sessionStorage.setItem('last_graph_selection', node.id);
       fgRef.current.centerAt(node.fx ?? node.x, node.fy ?? node.y, 500)
     }
     setStickyNode(node)
@@ -286,8 +291,9 @@ export default function GraphPage() {
 
   return (
     <div
-      className="relative w-full flex-1 min-h-0 overflow-hidden"
+      className="relative w-full overflow-hidden"
       style={{
+        height: 'calc(100vh - 70px)',
         backgroundColor: '#0d1117',
         backgroundImage: 'radial-gradient(circle, #2d3748 1px, transparent 1px)',
         backgroundSize: '24px 24px',
