@@ -92,8 +92,8 @@ export default function GraphPage() {
   const graphData = useMemo(() => {
     if (!rawNodes) return { nodes: [], links: [] }
 
-    const nodeArray = typeof rawNodes.get === 'function' ? rawNodes.get() : rawNodes
-    const edgeArray = typeof rawEdges.get === 'function' ? rawEdges.get() : rawEdges
+    const nodeArray = rawNodes || []
+    const edgeArray = rawEdges || []
 
     const processedNodes = nodeArray.map(n => {
       const type = n.type || FileType.DATA
