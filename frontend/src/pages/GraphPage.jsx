@@ -20,6 +20,7 @@ const NODE_FONT = `500 ${NODE_FONT_SIZE}px "Inter","system-ui","-apple-system","
 const LINK_FONT_SIZE = 60
 const LINK_FONT = `500 ${LINK_FONT_SIZE}px "Inter","system-ui","-apple-system","Segoe UI","Roboto","sans-serif"`
 const NODE_PADDING = 40
+const LINK_CURVATURE = 0.1
 
 function getLineage(nodeId, links) {
   const relatedNodes = new Set([String(nodeId)])
@@ -298,7 +299,7 @@ export default function GraphPage() {
 
   const linkCurvatures = useMemo(() => {
     const map = new Map()
-    graphData.links.forEach(l => { map.set(l, l.label ? 0.3 : 0) })
+    graphData.links.forEach(l => { map.set(l, l.label ? LINK_CURVATURE : 0) })
     return map
   }, [graphData.links])
 
@@ -314,22 +315,21 @@ export default function GraphPage() {
     if (sx == null || ex == null) return
 
     const curvature = linkCurvatures.get(link) || 0
-    let midX = (sx + ex) / 2
-    let midY = (sy + ey) / 2
+    let qX = sx + (ex - sx) * 0.25
+    let qY = sy + (ey - sy) * 0.25
     if (curvature !== 0) {
       const dx = ex - sx
       const dy = ey - sy
       const len = Math.sqrt(dx * dx + dy * dy) || 1
-      midX += (dy / len) * curvature * len * 0.5
-      midY += (-dx / len) * curvature * len * 0.5
+      qX += (dy / len) * curvature * len * 0.25
+      qY += (-dx / len) * curvature * len * 0.25
     }
-
     ctx.shadowBlur = 0
     ctx.font = LINK_FONT
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = '#e3f8f5ff'
-    ctx.fillText(link.label, midX, midY)
+    ctx.fillText(link.label, qX, qY)
   }, [linkCurvatures])
 
   const nodeVisibility = useCallback((n) => {
