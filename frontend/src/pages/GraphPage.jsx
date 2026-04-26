@@ -91,14 +91,7 @@ export default function GraphPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, [])
 
-  useEffect(() => {
-    if (errors && Object.keys(errors).length > 0) {
-      const summary = Object.entries(errors)
-        .map(([file, err]) => `• ${file.split('/').pop()}: ${err}`)
-        .join('\n')
-      alert(`⚠️ IceGraph: ${Object.keys(errors).length} Errors Detected\n\n${summary}`)
-    }
-  }, [errors])
+
 
   const graphData = useMemo(() => {
     if (!rawNodes) return { nodes: [], links: [] }

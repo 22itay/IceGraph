@@ -10,7 +10,7 @@ export default function NavBar() {
   const navigate = useNavigate()
   const isTablePage = useMatch('/table/*')
   const tableName = searchParams.get('table')
-  const { detailsOpen, setDetailsOpen, rawData } = useTableSpecs()
+  const { detailsOpen, setDetailsOpen, rawData, errors, errorsOpen, setErrorsOpen } = useTableSpecs()
   const [aboutOpen, setAboutOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [isDuplicating, setIsDuplicating] = useState(false)
@@ -109,6 +109,18 @@ export default function NavBar() {
               <NavLink to={`/table/timeline${tabSearch}`} className={tabClass}>Timeline</NavLink>
               <NavLink to={`/table/filetree${tabSearch}`} className={tabClass}>FileTree</NavLink>
 
+              {errors && Object.keys(errors).length > 0 && (
+                <button
+                  onClick={() => setErrorsOpen(p => !p)}
+                  className={`text-sm font-bold px-3 py-1 rounded-md transition border ${errorsOpen
+                    ? 'bg-red-600 border-red-600 text-white'
+                    : 'border-red-900/50 text-red-500 hover:bg-red-950/30 hover:border-red-800'
+                    }`}
+                >
+                  Errors ({Object.keys(errors).length})
+                </button>
+              )}
+
               <button
                 className={`text-sm font-medium px-3 py-1 rounded-md border transition ${detailsOpen
                   ? 'bg-[#2E86C1] border-[#2E86C1] text-white'
@@ -174,6 +186,18 @@ export default function NavBar() {
             <NavLink to={`/table/metadata${tabSearch}`} className={mobileTabClass}>Metadata</NavLink>
             <NavLink to={`/table/timeline${tabSearch}`} className={mobileTabClass}>Timeline</NavLink>
             <NavLink to={`/table/filetree${tabSearch}`} className={mobileTabClass}>FileTree</NavLink>
+
+            {errors && Object.keys(errors).length > 0 && (
+              <button
+                onClick={() => { setErrorsOpen(p => !p); setMenuOpen(false) }}
+                className={`text-sm font-bold px-3 py-2 rounded-md transition text-left ${errorsOpen
+                  ? 'bg-red-600 text-white'
+                  : 'text-red-500 hover:bg-red-950/30'
+                  }`}
+              >
+                Errors ({Object.keys(errors).length})
+              </button>
+            )}
 
             <div className="h-px bg-[#2d3748] my-1" />
 

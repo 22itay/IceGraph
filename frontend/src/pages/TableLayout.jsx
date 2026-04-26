@@ -14,7 +14,7 @@ import { getCachedData } from '../utils/cache_utils'
 export default function TableLayout() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { detailsOpen, setDetailsOpen, selectionDetail, setSelectionDetail, setRawData } = useTableSpecs()
+  const { detailsOpen, setDetailsOpen, selectionDetail, setSelectionDetail, setRawData, setErrors, errorsOpen, setErrorsOpen, errors } = useTableSpecs()
   const detailPanelRef = useRef(null)
 
   useEffect(() => {
@@ -23,11 +23,21 @@ export default function TableLayout() {
 
   useEffect(() => {
     const handleKey = (e) => {
-      if (e.key === 'Escape') { setDetailsOpen(false); setSelectionDetail(null) }
+      if (e.key === 'Escape') {
+        setDetailsOpen(false);
+        setSelectionDetail(null);
+        setErrorsOpen(false);
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [setDetailsOpen, setSelectionDetail])
+  }, [setDetailsOpen, setSelectionDetail, setErrorsOpen])
+
+  useEffect(() => {
+    if (errors && Object.keys(errors).length > 0) {
+      setErrorsOpen(true);
+    }
+  }, [errors, setErrorsOpen]);
 
   const tableName = searchParams.get('table') || ''
   const startSnapshot = searchParams.get('start_snapshot_id') || ''
@@ -115,6 +125,7 @@ export default function TableLayout() {
         console.log(data)
 
         setGraphData(buildGraphData(data))
+        setErrors(data.errors || {})
         setLoading(false)
         setJobId(null)
 
@@ -149,7 +160,9 @@ export default function TableLayout() {
           const cached = await getCachedData(cacheKey)
           if (cached) {
             setRawData(cached)
-            setGraphData(buildGraphData(JSONbig({ storeAsString: true }).parse(cached)))
+            const data = JSONbig({ storeAsString: true }).parse(cached)
+            setGraphData(buildGraphData(data))
+            setErrors(data.errors || {})
             setLoading(false)
 
             const cleanUrl = new URL(window.location.href)
@@ -170,6 +183,8 @@ export default function TableLayout() {
       return
     }
 
+    setError(null)
+    setErrors({})
     submitGraphJob(tableName, startSnapshot, endSnapshot)
 
   }, [tableName, startSnapshot, endSnapshot])
@@ -302,6 +317,48 @@ export default function TableLayout() {
                 </div>
               )}
 
+            </div>
+          </div>
+        </div>
+      )}
+      {errorsOpen && errors && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center font-sans"
+          onClick={() => setErrorsOpen(false)}
+        >
+          <div
+            className="w-[50vw] min-w-[400px] max-w-[800px] bg-[#1a202c] rounded-xl shadow-2xl border border-red-900/40 max-h-[80vh] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-red-900/30 bg-red-950/20 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-[#e2e8f0] text-base tracking-tight">Processing Errors</span>
+              </div>
+              <button
+                className="w-7 h-7 rounded-full bg-red-900/20 text-red-400 flex items-center justify-center text-base cursor-pointer hover:bg-red-900/40 hover:text-red-200 transition"
+                onClick={() => setErrorsOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-6 flex flex-col gap-6">
+              {Object.entries(errors).map(([op, err], i) => (
+                <div key={i} className="bg-[#0d1117] rounded-xl border border-red-900/30 overflow-hidden shadow-inner flex flex-col">
+                  <div className="px-5 py-4 border-b border-red-900/10">
+                    <span className="text-[0.65rem] font-bold text-red-400 uppercase tracking-widest block mb-2">Operation</span>
+                    <div className="text-sm font-mono text-[#e2e8f0] break-all leading-relaxed bg-red-900/5 px-2 py-1 rounded">
+                      {op}
+                    </div>
+                  </div>
+                  <div className="px-5 py-4 bg-red-900/5">
+                    <span className="text-[0.65rem] font-bold text-red-400 uppercase tracking-widest block mb-2">Error message</span>
+                    <div className="text-xs font-mono text-[#e2e8f0] whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                      {err}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
