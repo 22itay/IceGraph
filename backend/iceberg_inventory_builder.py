@@ -529,31 +529,7 @@ class IcebergInventoryBuilder:
                     snap["child_files"].extend(paths)
 
     def _collect_data_files(self, manifest_rows):
-        avro_df = None
-        for m_row in manifest_rows:
-            try:
-                df = (
-                    self._spark.read.format("avro")
-                    .load(m_row.path)
-                    .select("status", "data_file")
-                    .withColumn("_manifest_path", F.lit(m_row.path))
-                    .withColumn(
-                        "_added_snapshot_timestamp",
-                        F.lit(m_row.added_snapshot_timestamp),
-                    )
-                )
-                avro_df = (
-                    df
-                    if avro_df is None
-                    else avro_df.unionByName(df, allowMissingColumns=True)
-                )
-            except Exception as e:
-                logger.error(
-                    f"[{self._table_name}] Avro read error for {m_row.path}",
-                    exc_info=True,
-                )
-                self._errors[m_row.path] = f"Avro read error: {e}"
-
+        avro_df = self._aggreate_manifests_to_collect_data_files(manifest_rows)
         if avro_df is None:
             return []
 
@@ -601,6 +577,34 @@ class IcebergInventoryBuilder:
         )
 
         return [row.asDict(recursive=True) for row in grouped_df.collect()]
+
+    def _aggreate_manifests_to_collect_data_files(self, manifest_rows):
+        avro_df = None
+        for m_row in manifest_rows:
+            try:
+                df = (
+                    self._spark.read.format("avro")
+                    .load(m_row.path)
+                    .select("status", "data_file")
+                    .withColumn("_manifest_path", F.lit(m_row.path))
+                    .withColumn(
+                        "_added_snapshot_timestamp",
+                        F.lit(m_row.added_snapshot_timestamp),
+                    )
+                )
+                avro_df = (
+                    df
+                    if avro_df is None
+                    else avro_df.unionByName(df, allowMissingColumns=True)
+                )
+            except Exception as e:
+                logger.error(
+                    f"[{self._table_name}] Avro read error for {m_row.path}",
+                    exc_info=True,
+                )
+                self._errors[m_row.path] = f"Avro read error: {e}"
+
+        return avro_df
 
     def _process_manifests(self, manifest_rows, avro_entries):
         entries_by_manifest = defaultdict(list)
