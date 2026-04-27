@@ -24,36 +24,96 @@ function KV({ label, value, mono = false }) {
   )
 }
 
-function FieldRow({ field }) {
-  const isComplex = typeof field.type === 'object' && field.type !== null
-  const simpleType = isComplex ? null : field.type
+function TypeDisplay({ type }) {
+  if (typeof type === 'string') {
+    return (
+      <span className="text-xs font-mono text-[#2E86C1] bg-[#1e3a5f] px-2 py-0.5 rounded">
+        {type}
+      </span>
+    )
+  }
+
+  if (type.type === 'struct') {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-mono text-violet-400 bg-violet-900/30 px-2 py-0.5 rounded w-fit">
+          struct
+        </span>
+        <div className="ml-3 border-l-2 border-[#2d3748] pl-4 flex flex-col gap-3 py-1">
+          {type.fields.map(f => (
+            <div key={f.id || f['field-id'] || f.name} className="flex flex-col gap-1.5">
+               <div className="flex items-center gap-2">
+                  <span className="text-[0.65rem] font-mono text-slate-500 w-5 text-right shrink-0">
+                    {f.id || f['field-id'] || '—'}
+                  </span>
+                  <span className="text-sm font-semibold text-[#e2e8f0]">{f.name}</span>
+                  {f.required === false && (
+                    <span className="text-[0.6rem] font-bold text-slate-600 uppercase">optional</span>
+                  )}
+               </div>
+               <TypeDisplay type={f.type} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (type.type === 'list') {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-mono text-amber-400 bg-amber-900/40 px-2 py-0.5 rounded w-fit">
+          list
+        </span>
+        <div className="ml-3 border-l-2 border-[#2d3748] pl-4 py-1">
+          <TypeDisplay type={type.element} />
+        </div>
+      </div>
+    )
+  }
+
+  if (type.type === 'map') {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="text-xs font-mono text-emerald-400 bg-emerald-900/40 px-2 py-0.5 rounded w-fit">
+          map
+        </span>
+        <div className="ml-3 border-l-2 border-[#2d3748] pl-4 flex flex-col gap-3 py-1">
+          <div className="flex items-start gap-2">
+            <span className="text-[0.6rem] font-bold text-slate-500 uppercase mt-1 shrink-0 w-10 text-right">Key</span>
+            <TypeDisplay type={type.key} />
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="text-[0.6rem] font-bold text-slate-500 uppercase mt-1 shrink-0 w-10 text-right">Value</span>
+            <TypeDisplay type={type.value} />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="py-2 border-b border-[#2d3748] last:border-0">
-      <div className="flex items-center gap-3">
-        <span className="text-[0.65rem] font-mono text-slate-500 w-6 text-right shrink-0">
+    <pre className="text-[0.7rem] font-mono text-slate-300 bg-[#0d1117] border border-[#2d3748] rounded p-2 overflow-x-auto">
+      {JSON.stringify(type, null, 2)}
+    </pre>
+  )
+}
+
+function FieldRow({ field }) {
+  return (
+    <div className="py-4 border-b border-[#2d3748] last:border-0">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-xs font-mono text-slate-500 w-6 text-right shrink-0">
           {field['field-id'] ?? field.id ?? '—'}
         </span>
-        <span className="text-sm font-semibold text-[#e2e8f0] min-w-[120px]">{field.name}</span>
-        {simpleType && (
-          <span className="text-xs font-mono text-[#2E86C1] bg-[#1e3a5f] px-2 py-0.5 rounded">
-            {simpleType}
-          </span>
-        )}
-        {isComplex && (
-          <span className="text-xs font-mono text-violet-400 bg-violet-900/30 px-2 py-0.5 rounded">
-            {field.type.type ?? 'complex'}
-          </span>
-        )}
+        <span className="text-sm font-bold text-[#f8fafc] min-w-[120px]">{field.name}</span>
         {field.required === false && (
-          <span className="text-[0.6rem] font-bold text-slate-500 uppercase ml-auto">optional</span>
+          <span className="text-[0.6rem] font-bold text-slate-400 uppercase ml-auto">optional</span>
         )}
       </div>
-      {isComplex && (
-        <pre className="mt-2 ml-9 text-xs font-mono text-slate-300 bg-[#0d1117] border border-[#2d3748] rounded-lg p-3 overflow-x-auto whitespace-pre break-normal">
-          {JSON.stringify(field.type, null, 2)}
-        </pre>
-      )}
+      <div className="ml-9">
+        <TypeDisplay type={field.type} />
+      </div>
     </div>
   )
 }
