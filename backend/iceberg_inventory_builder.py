@@ -22,18 +22,22 @@ from constants import (
     UI_NEWLINE,
     MAIN_BRANCH_ICEBERG_TABLE_NAME,
     MAX_SNAPSHOTS_TO_COMPUTE,
+    MAX_DATA_FILES_TO_COLLECT,
 )
 from utils import (
     to_arrow_tz,
     get_metadata_row_slim_df_from_path,
     get_json_metadata_from_path,
-    update_col_metric,
     format_partition,
     format_schemas_to_full_dict,
 )
 
 max_snapshots_to_compute = int(
     os.getenv("MAX_SNAPSHOTS_TO_COMPUTE", MAX_SNAPSHOTS_TO_COMPUTE)
+)
+
+max_data_files_to_collect = int(
+    os.getenv("MAX_DATA_FILES_TO_COLLECT", MAX_DATA_FILES_TO_COLLECT)
 )
 
 
@@ -542,6 +546,7 @@ class IcebergInventoryBuilder:
             F.col("data_file.file_path").alias("_join_key"),
             F.col("data_file"),
             F.col("_added_snapshot_timestamp"),
+            F.col("_add_snapshot_id"),
         )
 
         manifest_entries_df = (
@@ -561,6 +566,7 @@ class IcebergInventoryBuilder:
             manifest_entries_df.join(earliest_df, on="_join_key", how="inner")
             .select(
                 "_manifest_entries",
+                "_add_snapshot_id",
                 "_added_snapshot_timestamp",
                 "data_file.file_path",
                 "data_file.content",
@@ -575,6 +581,36 @@ class IcebergInventoryBuilder:
             )
             .orderBy(F.desc("_added_snapshot_timestamp"))
         )
+
+        if (
+            avro_df.select("data_file.file_path").distinct().count()
+            > max_data_files_to_collect
+        ):
+            excluded_timestamp_threshold = (
+                avro_df.select(
+                    "_added_snapshot_timestamp",
+                    "data_file.file_path",
+                    "_add_snapshot_id",
+                )
+                .distinct()
+                .orderBy(F.desc("_added_snapshot_timestamp"))
+                .limit(max_data_files_to_collect + 1)
+                .tail(1)
+            )[0]
+
+            excluded_snapshot_id = excluded_timestamp_threshold["_add_snapshot_id"]
+            excluded_timestamp_threshold = excluded_timestamp_threshold[
+                "_added_snapshot_timestamp"
+            ]
+            print(
+                excluded_snapshot_id, excluded_timestamp_threshold
+            )  # TODO: remove print, and add a warning to the frontend.
+            # Need to give in the UI sql to get the child files of the excluded snapshot.
+            # Validate the output
+
+            grouped_df = grouped_df.filter(
+                F.col("_added_snapshot_timestamp") > excluded_timestamp_threshold
+            )
 
         return [row.asDict(recursive=True) for row in grouped_df.collect()]
 
@@ -591,6 +627,7 @@ class IcebergInventoryBuilder:
                         "_added_snapshot_timestamp",
                         F.lit(m_row.added_snapshot_timestamp),
                     )
+                    .withColumn("_add_snapshot_id", F.lit(m_row.added_snapshot_id))
                 )
                 avro_df = (
                     df
