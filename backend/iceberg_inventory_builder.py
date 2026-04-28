@@ -1,4 +1,5 @@
 from pyspark.sql.window import Window
+import inspect
 import os
 import arrow
 import json
@@ -55,7 +56,7 @@ class IcebergInventoryBuilder:
 
         self._spark_tz = self._spark.conf.get("spark.sql.session.timeZone")
         self._errors: Dict[str, str] = {}
-        self._warnings: Dict[str, str] = {}
+        self._warnings: Dict[str, Dict[str, str]] = {}
         self._snapshots_lock = threading.Lock()
 
         self._start_snapshot_cutoff = None
@@ -148,7 +149,7 @@ class IcebergInventoryBuilder:
         return {
             "inventory": inventory,
             "errors": self._errors,
-            "warnings": self._warnings,
+            "warnings": {key: warn["message"] for key, warn in self._warnings.items()},
             "metadata_specs": metadata_specs,
         }
 
@@ -664,10 +665,25 @@ class IcebergInventoryBuilder:
         total_rows = 0
         all_partitions = set()
 
-        if len(entries) == 0:
-            self._warnings["snapshot_cutoff"] = (
-                f"Data files cutoff was activated. You see partial data, as combined, the amount of data files asked for is larger than {max_data_files_to_collect}."
-            )
+        if len(entries) == 0 and (
+            self._warnings.get("data_files_limit_exceeded") is None
+            or self._warnings["data_files_limit_exceeded"]["timestamp"]
+            < m_row.added_snapshot_timestamp
+        ):
+
+            self._warnings["data_files_limit_exceeded"] = {
+                "message": (inspect.cleandoc(f"""
+                        Showing partial data! the number of data files exceeds the limit of {max_data_files_to_collect}!
+
+                        Latest snapshot that got cut off:
+                        ID: {m_row.added_snapshot_id}
+                        Timestamp: {m_row.added_snapshot_timestamp}
+
+                        The cutoff is applied at the snapshot boundary, meaning that all data files that belong to a snapshot that was cut off are excluded entirely.
+                        So all data files you do see belong to complete snapshots!
+                        """)),
+                "timestamp": m_row.added_snapshot_timestamp,
+            }
 
         for entry in entries:
             f_path = entry["file_path"]
