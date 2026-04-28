@@ -347,7 +347,6 @@ export default function TableLayout() {
             </div>
 
             <div className="overflow-y-auto px-6 py-6 flex flex-col gap-8">
-              {/* Errors Section */}
               {errors && Object.keys(errors).length > 0 && (
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center gap-2 px-1">
@@ -362,14 +361,13 @@ export default function TableLayout() {
                       </div>
                       <div className="px-5 py-4">
                         <span className="text-[0.6rem] font-bold text-red-500/70 uppercase tracking-tighter block mb-1">Message</span>
-                        <div className="text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed">{err}</div>
+                        <div className="text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed overflow-y-auto">{err}</div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Warnings Section */}
               {warnings && Object.keys(warnings).length > 0 && (
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center gap-2 px-1">
@@ -384,7 +382,7 @@ export default function TableLayout() {
                       </div>
                       <div className="px-5 py-4">
                         <span className="text-[0.6rem] font-bold text-amber-500/70 uppercase tracking-tighter block mb-1">Notice</span>
-                        <div className="text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed">{msg}</div>
+                        <div className="text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed overflow-y-auto">{msg}</div>
                       </div>
                     </div>
                   ))}
