@@ -14,7 +14,7 @@ from constants import (
     MAX_NUMBER_OF_GRAPHS_TO_COMPUTE,
     MAX_SNAPSHOTS_TO_SHOW,
 )
-from iceberg_inventory_builder import IcebergInventoryBuilder
+from iceberg_inventory_builder.iceberg_inventory_builder import IcebergInventoryBuilder
 from iceberg_metadata_snapshot_map import collect_snapshot_map
 from icegraph_logger import logger
 from icegraph_data_normalizer import normalize_graph_data

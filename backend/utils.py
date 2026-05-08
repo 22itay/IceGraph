@@ -1,15 +1,41 @@
-from typing import List
+import functools
+import inspect
 import json
-from pyspark.sql import functions as F
+import time
 from contextlib import suppress
 from typing import Any, Dict
+from typing import List
 
 import arrow
 from pyspark.errors import AnalysisException
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, StringType
 
 from constants import UI_NEWLINE, UI_SECTION_NEWLINE
+from icegraph_logger import logger
+
+
+def timed(fn):
+    signature = inspect.signature(fn)
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+
+        bound = signature.bind_partial(*args, **kwargs)
+        table_name = bound.arguments.get("table_name")
+
+        result = fn(*args, **kwargs)
+
+        prefix = f"[{table_name}] " if table_name else ""
+        logger.info(
+            f"{prefix}{fn.__name__} took {time.time() - start:.2f}s"
+        )
+
+        return result
+
+    return wrapper
 
 
 def verify_iceberg_table(table_name: str) -> bool:
@@ -78,13 +104,13 @@ def format_node_info(file_info: Dict[str, Any]) -> str:
 
     if file_info.get("existing_child_files") is not None:
         formatted_info += (
-            f"{UI_SECTION_NEWLINE}existing_child_files:"
-            + _format_list_for_ui(file_info["existing_child_files"])
+                f"{UI_SECTION_NEWLINE}existing_child_files:"
+                + _format_list_for_ui(file_info["existing_child_files"])
         )
     if file_info.get("deleted_child_files") is not None:
         formatted_info += (
-            f"{UI_SECTION_NEWLINE}deleted_child_files:"
-            + _format_list_for_ui(file_info["deleted_child_files"])
+                f"{UI_SECTION_NEWLINE}deleted_child_files:"
+                + _format_list_for_ui(file_info["deleted_child_files"])
         )
 
     if file_info.get("child_files") is not None:
