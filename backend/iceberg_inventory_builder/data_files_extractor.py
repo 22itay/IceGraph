@@ -34,7 +34,9 @@ class DataFilesAppearencesExtractor(Extractor):
     def extract_dataframe(self) -> ExtractionResult:
         data_files_df = self._collect_data_files_from_manifests(self._manifest_entries)
         data_files_with_erliest_ts_df = self._match_data_file_to_earliest_snapshot(data_files_df)
+
         data_files_by_manifests_df = self._group_data_files_by_manifests(data_files_df)
+
         data_files_with_manifest_entries_df = self._join_data_file_with_manifest_entries(data_files_with_erliest_ts_df, data_files_by_manifests_df)
         data_files_limited_df = self._limit_and_rank_files_by_snapshot_timestamp(data_files_with_manifest_entries_df)
 
@@ -42,7 +44,7 @@ class DataFilesAppearencesExtractor(Extractor):
 
         included_data_files_df = self._find_included_data_files(data_files_limited_df, snapshot_timestamp_cutoff_df)
 
-        return [row.asDict(recursive=True) for row in included_data_files_df.collect()]
+        return ExtractionResult(included_data_files_df, self._errors)
 
     def _group_data_files_by_manifests(self, avro_df):
         manifest_entries_df = avro_df.groupBy("data_file.file_path").agg(
