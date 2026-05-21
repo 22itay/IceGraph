@@ -120,7 +120,7 @@ class DataFilesAppearencesExtractor(Extractor):
                     avro_df = avro_df.unionByName(df, allowMissingColumns=True)
 
             except Exception as e:
-                self._errors[manifest_entry.path] = f"Avro read error: {e}"
+                self._errors[manifest_entry.file_path] = f"Avro read error: {e}"
 
         if avro_df is None:
             return self._spark.createDataFrame([], DATA_FILE_RECORD_SCHEMA)
@@ -130,9 +130,9 @@ class DataFilesAppearencesExtractor(Extractor):
     def _collect_data_files_from_manifest(self, manifest_entry: ManifestRecord):
         return (
             self._spark.read.format("avro")
-            .load(manifest_entry.path)
+            .load(manifest_entry.file_path)
             .select("status", "data_file")
-            .withColumn("manifest_path", F.lit(manifest_entry.path))
+            .withColumn("manifest_path", F.lit(manifest_entry.file_path))
             .withColumn(
                 "added_snapshot_timestamp",
                 F.lit(manifest_entry.added_snapshot_timestamp),

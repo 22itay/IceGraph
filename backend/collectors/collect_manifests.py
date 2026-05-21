@@ -1,4 +1,4 @@
-from argparse import FileType
+from constants import FileType
 from typing import Dict
 
 import pyspark
@@ -19,8 +19,6 @@ from utils import timed
 
 @dataclass
 class ManifestRecord(BaseFile):
-    type: str
-    path: str
     added_snapshot_id: int
     added_snapshot_timestamp: Arrow
     partitions: str
@@ -43,12 +41,10 @@ class CollectManifests(Collector):
 
     @timed
     def collect(self) -> FilesCollection:
-        manifest_extraction_result = ManifestAppearencesExtractor(
-            self._full_table_name, self._snapshots, self._manifests_to_ignore_df
-        ).extract_dataframe()
+        manifest_extraction_result = ManifestAppearencesExtractor(self._table_name, self._snapshots, self._manifests_to_ignore_df).extract_dataframe()
         self._errors = manifest_extraction_result.errors
 
-        manifests_rows = manifest_extraction_result.df.collect()
+        manifests_rows = manifest_extraction_result.dataframe.collect()
         self._manifests = [self._process_manifest_row(manifest_row) for manifest_row in manifests_rows]
 
         return FilesCollection(files=self._manifests, errors=self._errors)
@@ -57,12 +53,13 @@ class CollectManifests(Collector):
         manifest_dict = manifest_row.asDict(recursive=True)
 
         return ManifestRecord(
-            type=FileType.MANIFEST.value,
-            path=manifest_dict["path"],
+            type=FileType.MANIFEST,
+            file_path=manifest_dict["path"],
             added_snapshot_id=manifest_dict["added_snapshot_id"],
             added_snapshot_timestamp=manifest_dict["added_snapshot_timestamp"],
             partitions="",
             total_rows_in_downstream_files=0,
             existing_child_files=[],
             deleted_child_files=[],
+            child_files=[],
         )

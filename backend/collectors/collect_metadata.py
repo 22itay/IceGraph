@@ -24,7 +24,6 @@ class HiddenMetadata:
 
 @dataclass
 class MetadataFileRecord(BaseFile):
-    type: str
     timestamp: str
     snapshot_id: Optional[int]
     previous_file: Optional[str]
@@ -146,10 +145,10 @@ class CollectMetadata(Collector):
 
     def _parse_metadata_row(self, index: int, row: dict, rows: list, snap_id_to_path: dict) -> MetadataFileRecord:
         number_of_rows = len(rows)
-        file_type = FileType.METADATA.value
+        file_type = FileType.METADATA
 
         if index == 0:
-            file_type = FileType.MAIN_METADATA.value
+            file_type = FileType.MAIN_METADATA
             self._load_main_metadata_file(row)
 
         refs = self._parse_refs(row)

@@ -1,3 +1,4 @@
+from table_inventory.table_inventory import TableInventory
 from extractors.manifests_appearences_extractor import (
     ManifestAppearencesExtractor,
 )
@@ -66,6 +67,7 @@ class IcebergInventoryBuilder:
         self._data_files = None
 
     def collect(self) -> Dict[str, Any]:
+        TableInventory(self._table_name, start_snapshot_id=self._start_snapshot_id, end_snapshot_id=self._end_snapshot_id).build()
         total_start = time.time()
 
         self._search_cutoff = find_search_cutoff(

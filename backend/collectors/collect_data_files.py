@@ -14,7 +14,6 @@ from utils import timed
 
 @dataclass
 class DataFileRecord(BaseFile):
-    type: str
     format: str
     size_gb: str
     row_count: int
@@ -37,10 +36,10 @@ class CollectDataFiles(Collector):
 
     @timed
     def collect(self) -> FilesCollection:
-        data_files_extraction_result = DataFilesAppearencesExtractor(self._full_table_name, self._manifests).extract_dataframe()
+        data_files_extraction_result = DataFilesAppearencesExtractor(self._table_name, self._manifests).extract_dataframe()
         self._errors = data_files_extraction_result.errors
 
-        data_files_rows = data_files_extraction_result.df.collect()
+        data_files_rows = data_files_extraction_result.dataframe.collect()
         self._data_files = [self._process_data_file_row(data_file_row) for data_file_row in data_files_rows]
 
         return FilesCollection(files=self._data_files, errors=self._errors)
@@ -59,13 +58,14 @@ class CollectDataFiles(Collector):
             split_offsets=UI_NEWLINE.join(map(str, data_file_dict["split_offsets"] or [])),
             key_metadata=data_file_dict["key_metadata"],
             equality_ids=data_file_dict["equality_ids"],
+            child_files=[],
         )
 
-    def _detect_file_type(self, content: int) -> str:
+    def _detect_file_type(self, content: int) -> FileType:
         if content == 0:
-            return FileType.DATA.value
+            return FileType.DATA
 
-        elif content == 1:
-            return FileType.POSITION_DELETE.value
+        if content == 1:
+            return FileType.POSITION_DELETE
 
-        return FileType.EQUALITY_DELETE.value
+        return FileType.EQUALITY_DELETE

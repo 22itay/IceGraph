@@ -22,7 +22,6 @@ max_snapshots_to_compute = int(os.getenv("MAX_SNAPSHOTS_TO_COMPUTE", MAX_SNAPSHO
 
 @dataclass
 class SnapshotRecord(BaseFile):
-    type: str
     timestamp: str
     snapshot_id: int
     parent_id: Optional[int]
@@ -75,7 +74,7 @@ class CollectSnapshots(Collector):
 
     def _parse_snapshot_row(self, snapshot) -> SnapshotRecord:
         return SnapshotRecord(
-            type=FileType.SNAPSHOT.value,
+            type=FileType.SNAPSHOT,
             file_path=snapshot.manifest_list,
             timestamp=str(snapshot.committed_at),
             snapshot_id=snapshot.snapshot_id,
