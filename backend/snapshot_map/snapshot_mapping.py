@@ -1,6 +1,5 @@
 from typing import Dict
 import arrow
-from datetime import timezone
 from spark_connect import open_spark_connect_session
 
 

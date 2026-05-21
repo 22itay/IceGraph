@@ -17,7 +17,24 @@ max_data_files_to_collect = int(os.getenv("MAX_DATA_FILES_TO_COLLECT", MAX_DATA_
 DATA_FILE_RECORD_SCHEMA = StructType(
     [
         StructField("status", StringType(), False),
-        StructField("data_file", StringType(), False),
+        StructField(
+            "data_file",
+            StructType(
+                [
+                    StructField("file_path", StringType(), True),
+                    StructField("content", LongType(), True),
+                    StructField("file_format", StringType(), True),
+                    StructField("file_size_in_bytes", LongType(), True),
+                    StructField("record_count", LongType(), True),
+                    StructField("partition", StringType(), True),
+                    StructField("sort_order_id", LongType(), True),
+                    StructField("split_offsets", StringType(), True),
+                    StructField("key_metadata", StringType(), True),
+                    StructField("equality_ids", StringType(), True),
+                ]
+            ),
+            True,
+        ),
         StructField("manifest_path", StringType(), False),
         StructField("added_snapshot_timestamp", StringType(), True),
         StructField("added_snapshot_id", LongType(), True),

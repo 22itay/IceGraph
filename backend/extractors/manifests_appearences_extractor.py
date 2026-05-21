@@ -104,5 +104,5 @@ class ManifestAppearencesExtractor(Extractor):
         return (
             manifests_df.groupBy("path", "added_snapshot_id", "added_snapshot_timestamp")
             .agg(F.collect_list("snapshot_id").alias("snapshot_ids"))
-            .sort("added_snapshot_timestamp")
+            .sort(F.col("added_snapshot_timestamp").desc())
         )

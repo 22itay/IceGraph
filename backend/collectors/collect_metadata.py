@@ -19,8 +19,9 @@ from base_classes.base_file import HiddenFile
 
 @dataclass
 class HiddenMetadata2(HiddenFile):
-    color_append: float
+    color_shift: float
     branch_files: Dict[str, str]
+    main_branch_file: str
 
 
 @dataclass
@@ -178,7 +179,6 @@ class CollectMetadata(Collector):
             pointed_metadata_log_count=row["pointed_metadata_log_count"],
             child_files=child_files,
             hidden_metadata=HiddenMetadata2(
-                color_append=1 - index / (1.5 * number_of_rows),
-                branch_files=branch_files,
+                color_shift=1 - index / (1.5 * number_of_rows), branch_files=branch_files, main_branch_file=current_snap_path
             ),
         )
