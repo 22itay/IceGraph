@@ -1,3 +1,6 @@
+from utils import format_schemas_to_full_dict
+from utils import get_json_metadata_from_path
+from base_classes.spark_table_action import SparkTableAction
 from base_classes.base_file import BaseFile
 from constants import FileType
 from dataclasses import dataclass
@@ -35,21 +38,21 @@ class TableInventoryResult:
     manifests: List[ManifestRecord]
     data_files: List[DataFileRecord]
     metadata_files: List[MetadataFileRecord]
-    current_main_metadata_file: MetadataFileRecord
+    current_table_specs: Dict[str, Any]
 
 
-class TableInventory:
+class TableInventory(SparkTableAction):
     def __init__(
         self,
         full_table_name: str,
         start_snapshot_id: Optional[int] = None,
         end_snapshot_id: Optional[int] = None,
     ):
-        self._table_name = full_table_name
+        super().__init__(full_table_name)
+
         self._start_snapshot_id = start_snapshot_id
         self._end_snapshot_id = end_snapshot_id
 
-        self._spark = open_spark_connect_session()
         self._spark_tz = self._spark.conf.get("spark.sql.session.timeZone")
 
         self._errors: Dict[str, str] = {}
@@ -61,6 +64,8 @@ class TableInventory:
         self._snapshots: List[SnapshotRecord] = None
         self._manifests: List[ManifestRecord] = None
         self._data_files: List[DataFileRecord] = None
+
+        self._current_table_specs: Dict[str, Any] = None
 
     @timed
     def build(self):
@@ -74,7 +79,7 @@ class TableInventory:
 
         self._warn_if_data_cutoff_happend()
 
-        self._get_current_table_specs()
+        self._set_current_table_specs()
 
         return TableInventoryResult(
             errors=self._errors,
@@ -83,7 +88,7 @@ class TableInventory:
             manifests=self._manifests,
             data_files=self._data_files,
             metadata_files=self._metadata_files,
-            current_main_metadata_file=self.current_main_metadata_file,
+            current_table_specs=self._current_table_specs,
         )
 
     def _find_search_cutoff(self):
@@ -227,7 +232,20 @@ class TableInventory:
                 added_snapshot_timestamp=max_manifest_added_snapshot_timestamp,
             )
 
-    def _get_current_table_specs(self):
-        self.current_main_metadata_file = next(
-            metadata_file for metadata_file in self._metadata_files if metadata_file.type == FileType.MAIN_METADATA
-        )
+    def _set_current_table_specs(self):
+        self._current_table_specs = {"table-name": self._table_name}
+
+        try:
+            current_main_metadata_file = next(metadata_file for metadata_file in self._metadata_files if metadata_file.type == FileType.MAIN_METADATA)
+
+            current_table_specs = get_json_metadata_from_path(current_main_metadata_file.file_path)
+            current_table_specs["schemas"] = format_schemas_to_full_dict(current_table_specs.get("schemas", []))
+
+            self._current_table_specs.update(current_table_specs)
+
+        except Exception as e:
+            logger.error(
+                f"[{self._table_name}] Metadata specs error for {current_main_metadata_file.file_path}",
+                exc_info=True,
+            )
+            self._errors["collect_current_table_specs"] = f"Metadata specs error: {e}"

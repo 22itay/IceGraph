@@ -13,7 +13,7 @@ class GraphNormalizer:
         self._files = table_data.metadata_files + table_data.snapshots + table_data.manifests + table_data.data_files
         self._errors = table_data.errors
         self._warnings = table_data.warnings
-        self._metadata = table_data.current_main_metadata_file.to_dict()
+        self._current_table_metadata = table_data.current_table_specs
 
         self._path_to_nodes = {}
         self._edges = []
@@ -25,7 +25,7 @@ class GraphNormalizer:
         return {
             "nodes": list(self._path_to_nodes.values()),
             "edges": self._edges,
-            "metadata": self._metadata,
+            "metadata": self._current_table_metadata,
             "errors": self._errors,
             "warnings": self._warnings,
         }
