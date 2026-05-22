@@ -1,20 +1,19 @@
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 import pyspark.sql
 from arrow import Arrow
 from pyspark.sql import functions as F
 
-from constants import FileType, MAIN_BRANCH_ICEBERG_TABLE_NAME
-from base_classes.base_file import BaseFile
+from base_classes.base_file import BaseFile, HiddenFile
 from collectors.collect_snapshots import SnapshotRecord
 from collectors.collector import Collector
 from collectors.files_collection import FilesCollection
+from constants import FileType, MAIN_BRANCH_ICEBERG_TABLE_NAME
 from icegraph_logger import logger
 from utils import get_json_metadata_from_path, get_metadata_row_slim_df_from_path, timed
-from base_classes.base_file import HiddenFile
 
 
 @dataclass

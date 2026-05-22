@@ -1,15 +1,13 @@
-from constants import UI_NEWLINE
-from utils import format_partition
-from extractors.data_files_extractor import DataFilesAppearencesExtractor
-from collectors.collect_manifests import ManifestRecord
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import Dict, List
 
 from base_classes.base_file import BaseFile, HiddenFile
+from collectors.collect_manifests import ManifestRecord
 from collectors.collector import Collector
 from collectors.files_collection import FilesCollection
-from constants import FileType
-from utils import timed
+from constants import FileType, UI_NEWLINE
+from extractors.data_files_extractor import DataFilesAppearencesExtractor
+from utils import format_partition, timed
 
 
 @dataclass

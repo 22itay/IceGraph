@@ -1,8 +1,7 @@
-from copy import deepcopy
-from collectors.collect_metadata import MetadataFileRecord
-from constants import FileType
 import os
 
+from collectors.collect_metadata import MetadataFileRecord
+from constants import FileType
 from table_inventory.table_inventory import TableInventoryResult
 from utils import format_node_info
 

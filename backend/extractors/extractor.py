@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Dict
 
 import pyspark
 
-from dataclasses import dataclass, field
-from typing import Dict
 from base_classes.spark_table_action import SparkTableAction
 
 

@@ -1,19 +1,15 @@
 import os
 from dataclasses import dataclass
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 import pyspark.sql
 from arrow import Arrow
 from pyspark.sql import functions as F
 
-from constants import (
-    FileType,
-    UI_NEWLINE,
-    MAX_SNAPSHOTS_TO_COMPUTE,
-)
 from base_classes.base_file import BaseFile
 from collectors.collector import Collector
 from collectors.files_collection import FilesCollection
+from constants import (FileType, MAX_SNAPSHOTS_TO_COMPUTE, UI_NEWLINE)
 from icegraph_logger import logger
 from utils import timed
 

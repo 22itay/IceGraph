@@ -1,16 +1,12 @@
-from collectors.collect_manifests import ManifestRecord
-from pyspark.sql.types import LongType
-from pyspark.sql.types import StringType
-from pyspark.sql.types import StructField
-from pyspark.sql.types import StructType
-from typing import List
-from extractors.extractor import ExtractionResult
 import os
-from pyspark.sql import Window
-from pyspark.sql import functions as F
+from typing import List
 
-from extractors.extractor import Extractor
+from pyspark.sql import Window, functions as F
+from pyspark.sql.types import LongType, StringType, StructField, StructType
+
+from collectors.collect_manifests import ManifestRecord
 from constants import MAX_DATA_FILES_TO_COLLECT
+from extractors.extractor import ExtractionResult, Extractor
 
 max_data_files_to_collect = int(os.getenv("MAX_DATA_FILES_TO_COLLECT", MAX_DATA_FILES_TO_COLLECT))
 

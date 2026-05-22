@@ -1,31 +1,17 @@
-from utils import format_schemas_to_full_dict
-from utils import get_json_metadata_from_path
-from base_classes.spark_table_action import SparkTableAction
-from base_classes.base_file import BaseFile
-from constants import FileType
-from dataclasses import dataclass
-from constants import DATA_FILES_CUTOFF_WARNING
-from icegraph_logger import logger
-from concurrent.futures import ThreadPoolExecutor
-from collectors.collect_manifests import CollectManifests
-from collectors.collect_data_files import CollectDataFiles
-from extractors.manifests_appearences_extractor import ManifestAppearencesExtractor
-from collectors.collect_metadata import CollectMetadata
-from collectors.collect_snapshots import CollectSnapshots
-from search_cutoff.find_search_cutoff import find_search_cutoff
-from utils import timed
-from google.protobuf.any_pb2 import Any
-from typing import List
-from collectors.collect_data_files import DataFileRecord
-from collectors.collect_manifests import ManifestRecord
-from collectors.collect_snapshots import SnapshotRecord
-from collectors.collect_metadata import MetadataFileRecord
-from search_cutoff.find_search_cutoff import SearchCutoff
-from typing import Dict
-from spark_connect import open_spark_connect_session
-from typing import Optional
-from constants import MAX_DATA_FILES_TO_COLLECT
 import os
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+from base_classes.spark_table_action import SparkTableAction
+from collectors.collect_data_files import CollectDataFiles, DataFileRecord
+from collectors.collect_manifests import CollectManifests, ManifestRecord
+from collectors.collect_metadata import CollectMetadata, MetadataFileRecord
+from collectors.collect_snapshots import CollectSnapshots, SnapshotRecord
+from constants import DATA_FILES_CUTOFF_WARNING, FileType, MAX_DATA_FILES_TO_COLLECT
+from icegraph_logger import logger
+from search_cutoff.find_search_cutoff import SearchCutoff, find_search_cutoff
+from utils import format_schemas_to_full_dict, get_json_metadata_from_path, timed
 
 max_data_files_to_collect = int(os.getenv("MAX_DATA_FILES_TO_COLLECT", MAX_DATA_FILES_TO_COLLECT))
 

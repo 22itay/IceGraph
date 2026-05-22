@@ -1,21 +1,16 @@
-from constants import FileType
+from dataclasses import dataclass
 from typing import Dict
 
 import pyspark
+from arrow import Arrow
 
+from base_classes.base_file import BaseFile, HiddenFile
+from collectors.collect_snapshots import SnapshotRecord
 from collectors.collector import Collector
 from collectors.files_collection import FilesCollection
-from base_classes.base_file import BaseFile
-
-from collectors.collect_snapshots import SnapshotRecord
-
+from constants import FileType
 from extractors.manifests_appearences_extractor import ManifestAppearencesExtractor
-
-from arrow import Arrow
-from dataclasses import dataclass
-
 from utils import timed
-from base_classes.base_file import HiddenFile
 
 
 @dataclass

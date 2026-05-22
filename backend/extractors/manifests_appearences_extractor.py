@@ -1,15 +1,9 @@
-from extractors.extractor import ExtractionResult
-from collectors.collect_snapshots import SnapshotRecord
 import pyspark
 from pyspark.sql import functions as F
-from pyspark.sql.types import (
-    StructType,
-    StructField,
-    LongType,
-    StringType,
-)
+from pyspark.sql.types import (LongType, StringType, StructField, StructType)
 
-from extractors.extractor import Extractor
+from collectors.collect_snapshots import SnapshotRecord
+from extractors.extractor import ExtractionResult, Extractor
 
 SNAPSHOT_TO_TIMESTAMP_SCHEMA = StructType(
     [

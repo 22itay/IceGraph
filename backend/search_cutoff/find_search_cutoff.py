@@ -3,10 +3,10 @@ from typing import NamedTuple, Optional
 
 import arrow
 from pyspark.sql import DataFrame, SparkSession, functions as F
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.types import StringType, StructField, StructType
 
 from icegraph_logger import logger
-from utils import to_arrow_tz, timed
+from utils import timed, to_arrow_tz
 
 
 @dataclass

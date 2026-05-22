@@ -1,11 +1,11 @@
-from table_inventory.table_inventory import TableInventory
-import re
 import os
+import re
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 from pyspark.errors import AnalysisException
 
@@ -15,9 +15,10 @@ from constants import (
     MAX_NUMBER_OF_GRAPHS_TO_COMPUTE,
     MAX_SNAPSHOTS_TO_SHOW,
 )
-from snapshot_map.snapshot_mapping import collect_snapshot_map
-from icegraph_logger import logger
 from graph_normalizer.graph_normalizer import GraphNormalizer
+from icegraph_logger import logger
+from snapshot_map.snapshot_mapping import collect_snapshot_map
+from table_inventory.table_inventory import TableInventory
 from utils import verify_iceberg_table
 
 load_dotenv()
