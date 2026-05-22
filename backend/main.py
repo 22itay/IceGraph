@@ -1,10 +1,11 @@
-import re
 import os
+import re
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
 from pyspark.errors import AnalysisException
 
@@ -14,11 +15,11 @@ from constants import (
     MAX_NUMBER_OF_GRAPHS_TO_COMPUTE,
     MAX_SNAPSHOTS_TO_SHOW,
 )
-from iceberg_inventory_builder import IcebergInventoryBuilder
-from iceberg_metadata_snapshot_map import collect_snapshot_map
+from graph_normalizer.graph_normalizer import GraphNormalizer
 from icegraph_logger import logger
-from icegraph_data_normalizer import normalize_graph_data
-from utils import verify_iceberg_table
+from snapshot_map.snapshot_mapping import collect_snapshot_map
+from table_inventory.table_inventory import TableInventory
+from base_classes.utils import verify_iceberg_table
 
 load_dotenv()
 app = Flask(__name__, static_url_path="/static")
@@ -26,12 +27,8 @@ app = Flask(__name__, static_url_path="/static")
 job_lock = threading.Lock()
 jobs: dict[str, dict] = {}
 
-max_number_of_graphs_to_compute = int(
-    os.getenv("MAX_NUMBER_OF_GRAPHS_TO_COMPUTE", MAX_NUMBER_OF_GRAPHS_TO_COMPUTE)
-)
-compute_cleanup_time_seconds = int(
-    os.getenv("COMPUTE_CLEANUP_TIME_SECONDS", COMPUTE_CLEANUP_TIME_SECONDS)
-)
+max_number_of_graphs_to_compute = int(os.getenv("MAX_NUMBER_OF_GRAPHS_TO_COMPUTE", MAX_NUMBER_OF_GRAPHS_TO_COMPUTE))
+compute_cleanup_time_seconds = int(os.getenv("COMPUTE_CLEANUP_TIME_SECONDS", COMPUTE_CLEANUP_TIME_SECONDS))
 max_snapshots_to_show = int(os.getenv("MAX_SNAPSHOTS_TO_SHOW", MAX_SNAPSHOTS_TO_SHOW))
 
 executor_pool = ThreadPoolExecutor(max_workers=max_number_of_graphs_to_compute)
@@ -66,11 +63,9 @@ def _schedule_cleanup(job_id, is_in_lock_block=False):
 
 def _compute_graph_background(job_id, table_name, start_snapshot_id, end_snapshot_id):
     try:
-        table_data = IcebergInventoryBuilder(
-            table_name, start_snapshot_id, end_snapshot_id
-        ).collect()
+        table_data = TableInventory(table_name, start_snapshot_id, end_snapshot_id).build()
 
-        result = normalize_graph_data(table_data)
+        result = GraphNormalizer(table_data).normalize()
 
         _safe_update_job(job_id, status="completed", result=result)
         logger.info(f"Job {job_id} completed")

@@ -1,0 +1,19 @@
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Dict
+
+import pyspark
+
+from base_classes.spark_table_action import SparkTableAction
+
+
+@dataclass(frozen=True)
+class ExtractionResult:
+    dataframe: pyspark.sql.DataFrame
+    errors: Dict[str, str] = field(default_factory=dict)
+
+
+class Extractor(SparkTableAction, ABC):
+    @abstractmethod
+    def extract_dataframe(self) -> ExtractionResult:
+        pass
