@@ -5,6 +5,7 @@ import JSONbig from 'json-bigint'
 
 const COLOR_A = '#1964B9'
 const COLOR_B = '#6437D2'
+const COLOR_C = '#D97706'
 const COLOR_INIT = '#4a5568'
 
 function parseDetails(details) {
@@ -80,12 +81,14 @@ function formatDuration(tsA, tsB) {
 function colorFor(type) {
   if (type === 'A') return COLOR_A
   if (type === 'B') return COLOR_B
+  if (type === 'C') return COLOR_C
   return COLOR_INIT
 }
 
 function labelFor(type) {
   if (type === 'A') return 'Write'
   if (type === 'B') return 'Metadata Op'
+  if (type === 'C') return 'Branch Write'
   return 'Init'
 }
 
@@ -224,20 +227,54 @@ export default function TimelinePage() {
 
     const timeline = metaNodes.map(({ details }, i) => {
       const prev = i > 0 ? metaNodes[i - 1].details : null
-      const type = !prev
+      let type = !prev
         ? 'init'
         : details.snapshot_id !== prev.snapshot_id
           ? 'A'
           : 'B'
 
+      let branchSnapId = null
+      let branchName = null
+
+      if (prev && details.refs && prev.refs) {
+        try {
+          const currentRefs = JSONbig({ storeAsString: true }).parse(details.refs)
+          const prevRefs = JSONbig({ storeAsString: true }).parse(prev.refs)
+          
+          for (const key of Object.keys(prevRefs)) {
+            if (currentRefs[key] && prevRefs[key]) {
+              const currentSnapId = currentRefs[key]['snapshot-id']
+              const prevSnapId = prevRefs[key]['snapshot-id']
+              if (currentSnapId !== prevSnapId) {
+                branchSnapId = currentSnapId
+                branchName = key
+                break
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse refs", e)
+        }
+      }
+
+      if (type === 'B' && branchSnapId) {
+        type = 'C'
+      }
+
       const diff =
-        type === 'B' && prev
+        (type === 'B' || type === 'C') && prev
           ? Object.keys(details)
             .filter(k => details[k] !== prev[k])
             .map(k => ({ key: k, before: prev[k], after: details[k] }))
           : []
 
-      return { details, type, diff, snapshotId: details.snapshot_id }
+      return {
+        details,
+        type,
+        diff,
+        snapshotId: type === 'C' ? branchSnapId : details.snapshot_id,
+        branchName
+      }
     })
 
     return { events: timeline, snapshotMap: snapMap }
@@ -291,7 +328,7 @@ export default function TimelinePage() {
     <div className="flex-1 flex flex-col bg-[#0d1117] overflow-hidden">
 
       <div className="shrink-0 px-8 pt-5 flex items-center gap-5">
-        {[['A', 'Write'], ['B', 'Metadata Op'], ['init', 'Initial State']].map(([type, lbl]) => (
+        {[['A', 'Write'], ['C', 'Branch Write'], ['B', 'Metadata Op'], ['init', 'Initial State']].map(([type, lbl]) => (
           <div key={type} className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colorFor(type) }} />
             <span className="text-xs text-slate-400">{lbl}</span>
@@ -417,6 +454,54 @@ export default function TimelinePage() {
                       )}
                     </>
                   )}
+                </>
+              )}
+
+              {selected.type === 'C' && (
+                <>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center py-1.5 border-b border-[#2d3748]">
+                      <span className="text-xs text-slate-400">Branch Name</span>
+                      <span className="text-xs font-bold text-[#D97706] bg-[#3a200a] px-2 py-0.5 rounded">{selected.branchName ?? '—'}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1.5 border-b border-[#2d3748]">
+                      <span className="text-xs text-slate-400">Snapshot ID</span>
+                      <span className="text-xs font-mono text-[#e2e8f0]">{selected.snapshotId ?? '—'}</span>
+                    </div>
+                    {selectedSnap && (
+                      <>
+                        <div>
+                          <div className="text-[0.65rem] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Operation</div>
+                          <span className="text-xs font-mono text-[#2E86C1] bg-[#1e3a5f] px-2.5 py-1 rounded">
+                            {selectedSnap.operation ?? '—'}
+                          </span>
+                        </div>
+                        {parseSummary(selectedSnap.summary).length > 0 && (
+                          <div>
+                            <div className="text-[0.65rem] font-bold text-slate-500 uppercase tracking-wider mb-2">Summary</div>
+                            <div className="flex flex-col">
+                              {parseSummary(selectedSnap.summary).map(({ key, value }) => (
+                                <div key={key} className="flex justify-between items-center py-1.5 border-b border-[#2d3748] last:border-0">
+                                  <span className="text-xs text-slate-400">{key}</span>
+                                  <span className="text-xs font-mono text-[#e2e8f0]">{value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <div className="mt-4 border-t border-[#2d3748] pt-4">
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Metadata Changes</div>
+                    {selected.diff.length > 0
+                      ? selected.diff.map(({ key, before, after }) => (
+                        <DiffRow key={key} label={key} before={before} after={after} />
+                      ))
+                      : <p className="text-sm text-slate-400 italic">No tracked field changes detected.</p>
+                    }
+                  </div>
                 </>
               )}
 
