@@ -1,6 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
+function SnapshotItem({ ts, id, operation, selectedId, onClick }) {
+    const isSelected = selectedId === id
+    return (
+        <div key={id} data-id={id} onClick={() => onClick(id)}
+            className={`p-3 rounded-lg cursor-pointer border ${isSelected ? 'bg-[#2E86C1] border-[#2E86C1]' : 'bg-[#1a202c] border-[#2d3748]'}`}>
+            <div className="flex justify-between items-start">
+                <div className="text-xs text-slate-300">{ts}</div>
+                {operation && (
+                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${operation === 'overwrite' ? 'bg-blue-950/80 text-blue-400 border border-blue-800' :
+                            operation === 'append' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800' :
+                                operation === 'replace' ? 'bg-amber-950/80 text-amber-400 border border-amber-800' :
+                                    operation === 'delete' ? 'bg-rose-950/80 text-rose-400 border border-rose-800' :
+                                        'bg-slate-800 text-slate-400 border border-slate-700'
+                        }`}>
+                        {operation}
+                    </span>
+                )}
+            </div>
+            <div className={`text-[13px] ${isSelected ? 'text-blue-200' : 'text-slate-500'} font-mono mt-1 opacity-75`}>ID: {id}</div>
+        </div>
+    )
+}
+
 export default function SnapshotSelectionPage() {
     const [searchParams] = useSearchParams()
     const tableName = searchParams.get('table')
@@ -127,24 +150,14 @@ export default function SnapshotSelectionPage() {
                             <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Start Snapshot</label>
                             <div ref={startListRef} className="h-72 overflow-y-auto bg-[#2d3748] rounded-xl p-2 space-y-2 scroll-py-4">
                                 {entries.map(([ts, id, operation]) => (
-                                    <div key={id} data-id={id} onClick={() => setStartSnapshot(id)}
-                                        className={`p-3 rounded-lg cursor-pointer border ${startSnapshot === id ? 'bg-[#2E86C1] border-[#2E86C1]' : 'bg-[#1a202c] border-[#2d3748]'}`}>
-                                        <div className="flex justify-between items-start">
-                                            <div className="text-xs text-slate-300">{ts}</div>
-                                            {operation && (
-                                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                                                    operation === 'overwrite' ? 'bg-blue-950/80 text-blue-400 border border-blue-800' :
-                                                    operation === 'append' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800' :
-                                                    operation === 'replace' ? 'bg-amber-950/80 text-amber-400 border border-amber-800' :
-                                                    operation === 'delete' ? 'bg-rose-950/80 text-rose-400 border border-rose-800' :
-                                                    'bg-slate-800 text-slate-400 border border-slate-700'
-                                                }`}>
-                                                    {operation}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className={`text-[13px] ${startSnapshot === id ? 'text-blue-200' : 'text-slate-500'} font-mono mt-1 opacity-75`}>ID: {id}</div>
-                                    </div>
+                                    <SnapshotItem
+                                        key={id}
+                                        ts={ts}
+                                        id={id}
+                                        operation={operation}
+                                        selectedId={startSnapshot}
+                                        onClick={setStartSnapshot}
+                                    />
                                 ))}
                                 <div data-id="" onClick={() => setStartSnapshot('')}
                                     className={`p-3 rounded-lg cursor-pointer border ${startSnapshot === '' ? 'bg-[#2E86C1] border-[#2E86C1]' : 'bg-[#1a202c] border-[#2d3748]'}`}>
@@ -161,24 +174,14 @@ export default function SnapshotSelectionPage() {
                                     <div className="text-xs font-bold text-white">-- Latest --</div>
                                 </div>
                                 {entries.map(([ts, id, operation]) => (
-                                    <div key={id} data-id={id} onClick={() => setEndSnapshot(id)}
-                                        className={`p-3 rounded-lg cursor-pointer border ${endSnapshot === id ? 'bg-[#2E86C1] border-[#2E86C1]' : 'bg-[#1a202c] border-[#2d3748]'}`}>
-                                        <div className="flex justify-between items-start">
-                                            <div className="text-xs text-slate-300">{ts}</div>
-                                            {operation && (
-                                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                                                    operation === 'overwrite' ? 'bg-blue-950/80 text-blue-400 border border-blue-800' :
-                                                    operation === 'append' ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800' :
-                                                    operation === 'replace' ? 'bg-amber-950/80 text-amber-400 border border-amber-800' :
-                                                    operation === 'delete' ? 'bg-rose-950/80 text-rose-400 border border-rose-800' :
-                                                    'bg-slate-800 text-slate-400 border border-slate-700'
-                                                }`}>
-                                                    {operation}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className={`text-[13px] ${endSnapshot === id ? 'text-blue-200' : 'text-slate-500'} font-mono mt-1 opacity-75`}>ID: {id}</div>
-                                    </div>
+                                    <SnapshotItem
+                                        key={id}
+                                        ts={ts}
+                                        id={id}
+                                        operation={operation}
+                                        selectedId={endSnapshot}
+                                        onClick={setEndSnapshot}
+                                    />
                                 ))}
                             </div>
                         </div>
