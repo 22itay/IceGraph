@@ -25,8 +25,7 @@ function parseSummary(summary) {
 function formatTs(tsStr) {
   if (!tsStr) return null
   try {
-    const d = parseUtcDate(tsStr)
-    if (!d) return null
+    const d = new Date(tsStr)
     const ms = String(d.getMilliseconds()).padStart(3, '0')
     const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + `.${ms}`
     return {
@@ -34,7 +33,8 @@ function formatTs(tsStr) {
       time,
       full: `${d.toLocaleDateString()} ${time}`,
     }
-  } catch {
+  } catch (e) {
+    console.error(e)
     return null
   }
 }

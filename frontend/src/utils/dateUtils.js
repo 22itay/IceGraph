@@ -10,16 +10,14 @@ export function parseUtcDate(tsStr) {
 }
 
 export function formatLocaleDateTime(dateObj) {
-  if (!dateObj) return '';
-  return dateObj.toLocaleString(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    fractionalSecondDigits: 3,
-    timeZoneName: 'short'
-  });
+  if (!dateObj) return ''
+
+  const offset = -dateObj.getTimezoneOffset()
+  const sign = offset >= 0 ? '+' : '-'
+
+  const pad = (n, len = 2) => String(n).padStart(len, '0')
+
+  const offsetStr = `${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`
+
+  return `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())} ${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())}.${pad(dateObj.getMilliseconds(), 3)}${offsetStr}`
 }
