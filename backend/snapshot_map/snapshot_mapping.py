@@ -1,6 +1,7 @@
 from typing import Dict
+from pyspark.sql import functions as F
 
-import arrow
+from base_classes.utils import to_arrow_utc
 
 from spark_connect import open_spark_connect_session
 
@@ -10,13 +11,15 @@ def collect_snapshot_map(full_table_name: str, max_snapshots_to_show: int) -> Di
 
     df = spark.sql(f"""
         SELECT
-            date_format(committed_at, "yyyy-MM-dd'T'HH:mm:ss.SSS") AS snapshot_timestamp,
-            snapshot_id,operation
+            committed_at AS snapshot_timestamp,
+            snapshot_id,
+            operation
         FROM {full_table_name}.snapshots
         ORDER BY committed_at DESC
-    """).limit(max_snapshots_to_show)
+    """)
+
+    df = df.withColumn("snapshot_timestamp", F.date_format("snapshot_timestamp", "yyyy-MM-dd'T'HH:mm:ss.SSS")).limit(max_snapshots_to_show)
 
     return {
-        arrow.get(row.snapshot_timestamp).replace(tzinfo="UTC").isoformat(): {"snapshot_id": str(row.snapshot_id), "operation": row.operation}
-        for row in df.collect()
+        to_arrow_utc(row.snapshot_timestamp).isoformat(): {"snapshot_id": str(row.snapshot_id), "operation": row.operation} for row in df.collect()
     }
