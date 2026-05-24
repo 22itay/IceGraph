@@ -1,3 +1,5 @@
+from constants import STANDART_DATE_FORMAT
+from spark_connect import open_spark_connect_session
 import functools
 import inspect
 import time
@@ -55,5 +57,22 @@ def to_arrow_utc(timestamp):
     return arrow.get(timestamp).replace(tzinfo="UTC")
 
 
-def column_to_string_utc(column_name):
-    return F.date_format(F.col(column_name), "yyyy-MM-dd'T'HH:mm:ss.SSS")
+def column_to_string_utc(column_name: str):
+    """
+    Converts a timestamp column to a string in UTC format.
+
+    Note: In case of daylight saving time, as the timezone is changed, the timestamp will be converted to UTC and then back to the local time. This can on the hour of the shift cause incorrect results.
+
+    Args:
+        column_name: The name of the column to convert.
+
+    Returns:
+        pyspark.sql.functions.Column: The converted column.
+    """
+    session = open_spark_connect_session()
+    local_tz = session.conf.get("spark.sql.session.timeZone")
+
+    string_column_with_local_tz = F.date_format(F.col(column_name), STANDART_DATE_FORMAT)
+    timestamp_column_at_utc = F.to_utc_timestamp(string_column_with_local_tz, local_tz)
+
+    return F.date_format(timestamp_column_at_utc, STANDART_DATE_FORMAT)
