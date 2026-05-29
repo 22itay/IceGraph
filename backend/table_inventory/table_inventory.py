@@ -204,7 +204,7 @@ class TableInventory(SparkTableAction):
         max_manifest_added_snapshot_id = None
 
         for manifest in self._manifests:
-            if len(manifest.existing_child_files) == 0:
+            if len(manifest.child_files) == 0:
                 if max_manifest_added_snapshot_timestamp is None or max_manifest_added_snapshot_timestamp < manifest.added_snapshot_timestamp:
                     max_manifest_added_snapshot_timestamp = manifest.added_snapshot_timestamp
                     max_manifest_added_snapshot_id = manifest.added_snapshot_id
