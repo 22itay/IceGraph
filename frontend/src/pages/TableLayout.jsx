@@ -2,6 +2,7 @@ import JSONbig from 'json-bigint'
 import { useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { formatLocaleDateTime, parseUtcDate } from '../utils/dateUtils'
+import { IS_MOCK, MOCK_HOME } from '../appConstants'
 
 import MetadataStructured from '../components/MetadataStructured'
 import { useTableSpecs } from '../context/TableSpecsContext'
@@ -284,7 +285,7 @@ export default function TableLayout() {
           {errorDisplay}
           <button
             className="mt-6 px-5 py-2.5 rounded-lg border-2 border-[#2E86C1] bg-[#2E86C1] text-white font-bold text-sm cursor-pointer hover:bg-[#2471a3] transition"
-            onClick={() => navigate('/')}
+            onClick={() => navigate(IS_MOCK ? MOCK_HOME : '/')}
           >
             ← Back to Home
           </button>
