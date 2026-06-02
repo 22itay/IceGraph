@@ -3,7 +3,7 @@ import { NavLink, useLocation, useMatch, useNavigate, useSearchParams } from 're
 import logo from '../assets/icegraph.png'
 import { useTableSpecs } from '../context/TableSpecsContext'
 import { cacheData, clearCachedData } from '../utils/cacheUtils'
-import { IS_MOCK, MOCK_HOME } from '../appConstants'
+import { IS_MOCK, MOCK_HOME, MOCK_HOME_ROUTE } from '../appConstants'
 
 export default function NavBar() {
   const location = useLocation()
@@ -104,7 +104,7 @@ export default function NavBar() {
 
           {!isTablePage && (
             <>
-              <NavLink to={IS_MOCK ? MOCK_HOME : '/'} end className={tabClass}>
+              <NavLink to={IS_MOCK ? MOCK_HOME_ROUTE : '/'} end className={tabClass}>
                 Home
               </NavLink>
               <NavLink to="/docs" className={tabClass}>
@@ -269,7 +269,7 @@ export default function NavBar() {
 
             <button
               className="text-sm font-medium text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-3 py-2 rounded-md transition text-left"
-              onClick={() => { window.open('/', '_blank'); setMenuOpen(false) }}
+              onClick={() => { window.open(IS_MOCK ? MOCK_HOME : '/', '_blank'); setMenuOpen(false) }}
             >
               ← Home
             </button>

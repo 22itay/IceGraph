@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { MOCK_HOME, IS_MOCK } from './appConstants'
+import { MOCK_HOME_ROUTE, IS_MOCK } from './appConstants'
 import HomePage from './pages/HomePage'
 import GraphPage from './pages/GraphPage'
 import MetadataPage from './pages/MetadataPage'
@@ -28,13 +28,13 @@ export default function App() {
           path="/"
           element={
             IS_MOCK
-              ? <Navigate to={MOCK_HOME} replace />
+              ? <Navigate to={MOCK_HOME_ROUTE} replace />
               : <Layout><HomePage /></Layout>
           }
         />
         <Route path="snapshots-selection" element={
-          import.meta.env.VITE_USE_MSW === 'true'
-            ? <Navigate to="/table/graph?table=default.events" replace />
+          IS_MOCK
+            ? <Navigate to={MOCK_HOME_ROUTE} replace />
             : <Layout><SnapshotSelectionPage /></Layout>
         } />
         <Route path="/docs" element={<Layout><DocsPage /></Layout>} />
