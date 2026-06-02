@@ -124,7 +124,7 @@ class DataFilesExtractor(Extractor):
         return (
             grouped_files_limited_df.join(F.broadcast(snapshot_timestamp_cutoff_df), how="cross")
             .filter(F.col("latest_snapshot_timestamp") > F.col("snapshot_timestamp_cutoff"))
-            .drop("row_num", "snapshot_timestamp_cutoff")
+            .drop("row_num", "snapshot_timestamp_cutoff", "latest_snapshot_timestamp", "latest_snapshot_id")
         )
 
     def _collect_data_files_from_manifests(self, manifest_rows):
