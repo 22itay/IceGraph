@@ -73,14 +73,22 @@ class DataFilesExtractor(Extractor):
 
     @staticmethod
     def _match_data_file_to_latest_snapshot(avro_df):
-        window = Window.partitionBy("data_file.file_path").orderBy(F.desc("added_snapshot_timestamp"))
-        avro_df = avro_df.withColumn("row_num", F.row_number().over(window))
+        window_desc = Window.partitionBy("data_file.file_path").orderBy(F.desc("added_snapshot_timestamp"))
+        window_asc = Window.partitionBy("data_file.file_path").orderBy(F.asc("added_snapshot_timestamp"))
+
+        avro_df = (
+            avro_df.withColumn("row_num", F.row_number().over(window_desc))
+            .withColumn("earliest_snapshot_timestamp", F.first("added_snapshot_timestamp", ignorenulls=True).over(window_asc))
+            .withColumn("earliest_snapshot_id", F.first("added_snapshot_id", ignorenulls=True).over(window_asc))
+        )
 
         latest_df = avro_df.filter(F.col("row_num") == 1).select(
             F.col("data_file.file_path").alias("file_path"),
             F.col("data_file"),
             F.col("added_snapshot_timestamp").alias("latest_snapshot_timestamp"),
             F.col("added_snapshot_id").alias("latest_snapshot_id"),
+            F.col("earliest_snapshot_timestamp"),
+            F.col("earliest_snapshot_id"),
         )
         return latest_df
 
@@ -90,6 +98,8 @@ class DataFilesExtractor(Extractor):
             "pointing_manifests",
             "latest_snapshot_id",
             "latest_snapshot_timestamp",
+            "earliest_snapshot_id",
+            "earliest_snapshot_timestamp",
             "data_file.file_path",
             "data_file.content",
             "data_file.file_format",
