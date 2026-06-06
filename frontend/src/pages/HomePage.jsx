@@ -6,6 +6,9 @@ import JSONbig from 'json-bigint'
 export default function HomePage() {
   const [tableName, setTableName] = useState('')
   const [history, setHistory] = useState([])
+  const [catalogTables, setCatalogTables] = useState(null)
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogError, setCatalogError] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -26,6 +29,27 @@ export default function HomePage() {
     navigate(`/snapshots-selection?${params.toString()}`)
   }
 
+  async function fetchCatalogTables() {
+    setCatalogLoading(true)
+    setCatalogError(null)
+
+    try {
+      const res = await fetch('/api/v1/tables')
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to fetch tables')
+      setCatalogTables(data.tables ?? [])
+    } catch (e) {
+      setCatalogError(e.message)
+      setCatalogTables(null)
+    } finally {
+      setCatalogLoading(false)
+    }
+  }
+
+  function selectCatalogTable(name) {
+    setTableName(name)
+  }
+
   return (
     <div className="flex-1 flex flex-col">
       <main className="flex-1 flex items-center justify-center p-8">
@@ -42,9 +66,19 @@ export default function HomePage() {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Table Name
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Table Name
+                </label>
+                <button
+                  type="button"
+                  onClick={fetchCatalogTables}
+                  disabled={catalogLoading}
+                  className="text-xs font-bold text-accent hover:text-accent-dark disabled:text-slate-500 disabled:cursor-not-allowed transition"
+                >
+                  {catalogLoading ? 'Loading…' : 'Browse catalog'}
+                </button>
+              </div>
               <input
                 list="table-history"
                 type="text"
@@ -59,6 +93,36 @@ export default function HomePage() {
                   <option key={item} value={item} />
                 ))}
               </datalist>
+
+              {catalogError && (
+                <p className="mt-2 text-xs text-rose-400">{catalogError}</p>
+              )}
+
+              {catalogTables && (
+                <div className="mt-3 border border-edge rounded-lg overflow-hidden">
+                  {catalogTables.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-slate-400">No tables found in the catalog.</p>
+                  ) : (
+                    <ul className="max-h-48 overflow-y-auto divide-y divide-edge">
+                      {catalogTables.map(name => (
+                        <li key={name}>
+                          <button
+                            type="button"
+                            onClick={() => selectCatalogTable(name)}
+                            className={`w-full text-left px-3 py-2 text-sm font-mono transition ${
+                              tableName === name
+                                ? 'bg-accent-muted text-ink'
+                                : 'text-slate-300 hover:bg-surface-hover hover:text-ink'
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
 
             <button

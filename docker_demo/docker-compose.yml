@@ -51,7 +51,7 @@ services:
       - "--conf"
       - "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
       - "--conf"
-      - "spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkSessionCatalog"
+      - "spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog"
       - "--conf"
       - "spark.sql.catalog.spark_catalog.type=hadoop"
       - "--conf"

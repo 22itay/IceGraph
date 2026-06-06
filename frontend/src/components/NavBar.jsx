@@ -14,8 +14,14 @@ export default function NavBar() {
   const { detailsOpen, setDetailsOpen, rawData, errors, warnings, issuesOpen, setIssuesOpen } = useTableSpecs()
   const [aboutOpen, setAboutOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [tablePickerOpen, setTablePickerOpen] = useState(false)
+  const [pickerTableName, setPickerTableName] = useState('')
+  const [catalogTables, setCatalogTables] = useState(null)
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogError, setCatalogError] = useState(null)
   const [isDuplicating, setIsDuplicating] = useState(false)
   const navRef = useRef(null)
+  const tablePickerRef = useRef(null)
 
   useEffect(() => {
     if (!aboutOpen) return
@@ -25,13 +31,26 @@ export default function NavBar() {
   }, [aboutOpen])
 
   useEffect(() => {
-    if (!menuOpen) return
-    const handler = (e) => { if (navRef.current && !navRef.current.contains(e.target)) setMenuOpen(false) }
+    if (!menuOpen && !tablePickerOpen) return
+    const handler = (e) => {
+      if (menuOpen && navRef.current && !navRef.current.contains(e.target)) setMenuOpen(false)
+      if (tablePickerOpen && tablePickerRef.current && !tablePickerRef.current.contains(e.target)) setTablePickerOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [menuOpen])
+  }, [menuOpen, tablePickerOpen])
 
-  useEffect(() => { setMenuOpen(false) }, [location.pathname, location.search])
+  useEffect(() => {
+    setMenuOpen(false)
+    setTablePickerOpen(false)
+  }, [location.pathname, location.search])
+
+  useEffect(() => {
+    if (!tablePickerOpen) return
+    const handleKey = (e) => { if (e.key === 'Escape') setTablePickerOpen(false) }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [tablePickerOpen])
 
   useEffect(() => {
     if (!isTablePage) return
@@ -51,6 +70,119 @@ export default function NavBar() {
 
 
   const tabSearch = location.search
+
+  function openTablePicker() {
+    setPickerTableName(tableName || '')
+    setCatalogTables(null)
+    setCatalogError(null)
+    setTablePickerOpen(true)
+  }
+
+  async function fetchCatalogTables() {
+    setCatalogLoading(true)
+    setCatalogError(null)
+
+    try {
+      const res = await fetch('/api/v1/tables')
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to fetch tables')
+      setCatalogTables(data.tables ?? [])
+    } catch (e) {
+      setCatalogError(e.message)
+      setCatalogTables(null)
+    } finally {
+      setCatalogLoading(false)
+    }
+  }
+
+  function changeTable(newName) {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+
+    const savedHistory = localStorage.getItem('tableHistory')
+    const history = savedHistory ? JSON.parse(savedHistory) : []
+    const updatedHistory = [...new Set([trimmed, ...history])].slice(0, 5)
+    localStorage.setItem('tableHistory', JSON.stringify(updatedHistory))
+
+    if (IS_MOCK) {
+      const tab = location.pathname.match(/\/table\/([^/]+)/)?.[1] || 'graph'
+      navigate(`/table/${tab}?table=${encodeURIComponent(trimmed)}`)
+    } else {
+      navigate(`/snapshots-selection?table=${encodeURIComponent(trimmed)}`)
+    }
+
+    setTablePickerOpen(false)
+    setMenuOpen(false)
+  }
+
+  function handleTablePickerSubmit(e) {
+    e.preventDefault()
+    changeTable(pickerTableName)
+  }
+
+  const tableNameButtonClass =
+    'text-sm font-mono px-3 py-1 rounded-md border border-slate-600 text-slate-300 hover:text-white hover:border-slate-400 hover:bg-surface-hover transition cursor-pointer'
+
+  const tablePickerPanel = (
+    <form onSubmit={handleTablePickerSubmit} className="flex flex-col gap-3">
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Change table
+          </label>
+          <button
+            type="button"
+            onClick={fetchCatalogTables}
+            disabled={catalogLoading}
+            className="text-xs font-bold text-accent hover:text-accent-dark disabled:text-slate-500 disabled:cursor-not-allowed transition"
+          >
+            {catalogLoading ? 'Loading…' : 'Browse catalog'}
+          </button>
+        </div>
+        <input
+          type="text"
+          required
+          value={pickerTableName}
+          onChange={e => setPickerTableName(e.target.value)}
+          placeholder="default.my_table"
+          className="w-full border border-edge bg-edge rounded-lg px-3 py-2 text-sm text-ink placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition"
+          autoFocus
+        />
+        {catalogError && (
+          <p className="mt-2 text-xs text-rose-400">{catalogError}</p>
+        )}
+        {catalogTables && (
+          <ul className="mt-2 max-h-40 overflow-y-auto border border-edge rounded-lg divide-y divide-edge">
+            {catalogTables.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-slate-400">No tables found in the catalog.</li>
+            ) : (
+              catalogTables.map(name => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    onClick={() => setPickerTableName(name)}
+                    className={`w-full text-left px-3 py-2 text-sm font-mono transition ${
+                      pickerTableName === name
+                        ? 'bg-accent-muted text-ink'
+                        : 'text-slate-300 hover:bg-surface-hover hover:text-ink'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+      </div>
+      <button
+        type="submit"
+        className="bg-accent hover:bg-accent-dark text-white font-bold py-2 rounded-lg transition text-sm"
+      >
+        Continue
+      </button>
+    </form>
+  )
 
   const handleDuplicateTab = async () => {
     if (isDuplicating || !rawData) return
@@ -97,10 +229,15 @@ export default function NavBar() {
 
         <div className="px-4 sm:px-6 py-3 flex items-center gap-4">
 
-          <div className="flex items-center gap-2 select-none shrink-0">
-            <img src={logo} alt="IceGraph" className="h-10 w-10 object-contain" />
+          <button
+            type="button"
+            className="flex items-center gap-2 select-none shrink-0 cursor-pointer rounded-md px-1 -ml-1 hover:bg-surface-hover transition"
+            onClick={() => setAboutOpen(true)}
+            title="About IceGraph"
+          >
+            <img src={logo} alt="" className="h-10 w-10 object-contain pointer-events-none" aria-hidden="true" />
             <span className="text-lg font-bold tracking-tight">IceGraph</span>
-          </div>
+          </button>
 
           {!isTablePage && (
             <>
@@ -116,12 +253,22 @@ export default function NavBar() {
           {isTablePage && (
             <div className="hidden md:flex items-center gap-4 flex-1">
               {tableName && (
-                <button
-                  className="text-sm font-mono px-3 py-1 rounded-md border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white bg-transparent transition"
-                  onClick={() => setAboutOpen(true)}
-                >
-                  {tableName}
-                </button>
+                <div className="relative" ref={tablePickerRef}>
+                  <button
+                    type="button"
+                    onClick={() => (tablePickerOpen ? setTablePickerOpen(false) : openTablePicker())}
+                    className={tableNameButtonClass}
+                    title="Change table"
+                    aria-expanded={tablePickerOpen}
+                  >
+                    {tableName}
+                  </button>
+                  {tablePickerOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-80 p-4 rounded-lg border border-edge bg-surface shadow-xl z-[70]">
+                      {tablePickerPanel}
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="w-px h-4 bg-slate-700" />
@@ -203,12 +350,22 @@ export default function NavBar() {
         {isTablePage && menuOpen && (
           <div className="md:hidden border-t border-edge px-4 py-3 flex flex-col gap-1 bg-surface absolute top-16 left-0 w-full z-[60] shadow-xl">
             {tableName && (
-              <button
-                className="text-sm font-mono px-3 py-2 rounded-md border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white bg-transparent transition text-left"
-                onClick={() => { setAboutOpen(true); setMenuOpen(false) }}
-              >
-                {tableName}
-              </button>
+              <div ref={tablePickerRef}>
+                <button
+                  type="button"
+                  onClick={() => (tablePickerOpen ? setTablePickerOpen(false) : openTablePicker())}
+                  className={`${tableNameButtonClass} w-full text-left`}
+                  title="Change table"
+                  aria-expanded={tablePickerOpen}
+                >
+                  {tableName}
+                </button>
+                {tablePickerOpen && (
+                  <div className="mt-2 p-4 rounded-lg border border-edge bg-surface-hover">
+                    {tablePickerPanel}
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="h-px bg-edge my-1" />
