@@ -50,7 +50,8 @@ const SECTIONS = [
           <h3 className="text-white font-semibold">1. Enter the table name</h3>
           <p>
             From the Home page, type the fully-qualified name of your Iceberg table
-            (e.g. <code className="bg-surface-hover px-1.5 py-0.5 rounded text-[#7dd3fc] text-sm">database.table_name</code>) and press Enter or click Load.
+            (e.g. <code className="bg-surface-hover px-1.5 py-0.5 rounded text-[#7dd3fc] text-sm">database.table_name</code>) and press Enter or click Continue.
+            You can also click <strong className="text-white">Browse catalog</strong> to list Iceberg tables from the Spark catalog. Only tables that IceGraph can load (verified via the same metadata path used for visualization) are shown.
           </p>
         </div>
         <div className="space-y-2">
@@ -65,6 +66,14 @@ const SECTIONS = [
           <p>
             IceGraph fetches the metadata in the background. Once ready, you land on the Graph view.
             Large ranges with many data files may take a moment.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-white font-semibold">Switching tables</h3>
+          <p>
+            While viewing a table, click the table name in the navbar to open a picker. Enter a new
+            table or use <strong className="text-white">Browse catalog</strong>, then click Continue to
+            choose a snapshot range for that table.
           </p>
         </div>
       </div>
@@ -157,6 +166,15 @@ const SECTIONS = [
           Use the Timeline to pinpoint when a large write happened, spot unexpected deletes, or
           verify that a compaction job ran as expected.
         </p>
+        <div className="space-y-2">
+          <h3 className="text-white font-semibold">Zoom &amp; pan</h3>
+          <p>
+            Scroll the mouse wheel to zoom in and out (text and nodes scale together, like Graph view).
+            Drag the timeline background to pan. Use horizontal trackpad scroll or Shift + wheel to pan
+            sideways without zooming. <strong className="text-white">Fit Timeline</strong> scales the full
+            history to the viewport; <strong className="text-white">Reset View</strong> returns to 100% zoom.
+          </p>
+        </div>
         <div className="space-y-2">
           <h3 className="text-white font-semibold">Details panel</h3>
           <p>
@@ -293,6 +311,9 @@ const SECTIONS = [
 
         <div className="space-y-1">
           <h3 className="text-white font-semibold mb-2">Timeline View</h3>
+          <ShortcutRow keys={['Scroll']} desc="Zoom in / out on the timeline" />
+          <ShortcutRow keys={['Drag']} desc="Pan the timeline" />
+          <ShortcutRow keys={['Shift', 'Scroll']} desc="Pan the timeline horizontally" />
           <ShortcutRow keys={['h', '←']} desc="Select the previous snapshot — if none is selected, jumps to the first (oldest)" />
           <ShortcutRow keys={['l', '→']} desc="Select the next snapshot — if none is selected, jumps to the last (newest)" />
           <ShortcutRow keys={['j', '↓']} desc="Scroll the snapshot details panel down" />

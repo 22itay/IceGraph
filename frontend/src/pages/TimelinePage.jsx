@@ -73,6 +73,38 @@ function labelFor(type) {
   return 'Init'
 }
 
+const ZOOM_MIN = 0.35
+const ZOOM_MAX = 3
+const DEFAULT_VIEW = { zoom: 1, panX: 0, panY: 0 }
+
+function timelineSizes(zoom) {
+  return {
+    padY: 48 * zoom,
+    padX: 64 * zoom,
+    node: 44 * zoom,
+    connector: 56 * zoom,
+    gap: 8 * zoom,
+    textMax: 160 * zoom,
+    fontMicro: 9.6 * zoom,
+    fontDetail: 11.2 * zoom,
+    fontXs: 12 * zoom,
+    arrowTop: 4 * zoom,
+    arrowBottom: 4 * zoom,
+    arrowLeft: 7 * zoom,
+    nodeBorder: 2 * zoom,
+    outline: 2 * zoom,
+    outlineOffset: 3 * zoom,
+    durMb: 4 * zoom,
+  }
+}
+
+function contentNaturalSize(content, zoom) {
+  return {
+    width: content.offsetWidth / zoom,
+    height: content.offsetHeight / zoom,
+  }
+}
+
 function DiffRow({ label, before, after }) {
   const tryParse = (val) => {
     if (!val) return null
@@ -219,9 +251,14 @@ function DiffList({ diff }) {
 export default function TimelinePage() {
   const { nodes } = useOutletContext()
   const [selected, setSelected] = useState(null)
+  const [view, setView] = useState(DEFAULT_VIEW)
+  const [isDragging, setIsDragging] = useState(false)
   const selectedRef = useRef(null)
   const eventsRef = useRef([])
-  const itemRefs = useRef([])
+  const viewportRef = useRef(null)
+  const contentRef = useRef(null)
+  const dragRef = useRef(null)
+  const didPanRef = useRef(false)
   const popupScrollRef = useRef(null)
   const popupScrollTargetRef = useRef(0)
   const popupScrollRafRef = useRef(null)
@@ -355,19 +392,115 @@ export default function TimelinePage() {
     return { events: timeline, snapshotMap: snapMap }
   }, [nodes])
 
+  const fitTimeline = () => {
+    const viewport = viewportRef.current
+    const content = contentRef.current
+    if (!viewport || !content) return
+    const padding = 48
+    const { width, height } = contentNaturalSize(content, view.zoom)
+    const fitZoom = Math.min(
+      1,
+      (viewport.clientWidth - padding) / width,
+      (viewport.clientHeight - padding) / height,
+    )
+    setView({
+      zoom: fitZoom,
+      panX: (viewport.clientWidth - width * fitZoom) / 2,
+      panY: (viewport.clientHeight - height * fitZoom) / 2,
+    })
+  }
+
+  const resetView = () => {
+    const viewport = viewportRef.current
+    const content = contentRef.current
+    if (!viewport || !content) return
+    const { width, height } = contentNaturalSize(content, view.zoom)
+    setView({
+      zoom: 1,
+      panX: (viewport.clientWidth - width) / 2,
+      panY: (viewport.clientHeight - height) / 2,
+    })
+  }
+
   useEffect(() => {
     selectedRef.current = selected
     popupScrollTargetRef.current = 0
     if (popupScrollRef.current) popupScrollRef.current.scrollTop = 0
   }, [selected])
   useEffect(() => { eventsRef.current = events }, [events])
+
   useEffect(() => {
-    if (!selected) return
-    const idx = eventsRef.current.indexOf(selected)
-    if (idx >= 0 && itemRefs.current[idx]) {
-      itemRefs.current[idx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    if (events.length === 0) return
+    const id = requestAnimationFrame(fitTimeline)
+    return () => cancelAnimationFrame(id)
+  }, [events.length])
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+
+    const onWheel = (e) => {
+      e.preventDefault()
+      const rect = viewport.getBoundingClientRect()
+
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        setView(v => ({ ...v, panX: v.panX - e.deltaX }))
+        return
+      }
+      if (e.shiftKey) {
+        setView(v => ({ ...v, panX: v.panX - e.deltaY }))
+        return
+      }
+
+      const cx = e.clientX - rect.left
+      const cy = e.clientY - rect.top
+      const factor = Math.exp(-e.deltaY * 0.002)
+      setView(v => {
+        const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.zoom * factor))
+        const scale = newZoom / v.zoom
+        return {
+          zoom: newZoom,
+          panX: cx - (cx - v.panX) * scale,
+          panY: cy - (cy - v.panY) * scale,
+        }
+      })
     }
-  }, [selected])
+
+    viewport.addEventListener('wheel', onWheel, { passive: false })
+    return () => viewport.removeEventListener('wheel', onWheel)
+  }, [])
+
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!dragRef.current) return
+      const dx = e.clientX - dragRef.current.x
+      const dy = e.clientY - dragRef.current.y
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true
+      setView(v => ({
+        ...v,
+        panX: dragRef.current.panX + dx,
+        panY: dragRef.current.panY + dy,
+      }))
+    }
+    const onMouseUp = () => { dragRef.current = null; setIsDragging(false) }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
+  const startPan = (e) => {
+    if (e.button !== 0) return
+    dragRef.current = { x: e.clientX, y: e.clientY, panX: view.panX, panY: view.panY }
+    didPanRef.current = false
+    setIsDragging(true)
+  }
+
+  const selectEvent = (event) => {
+    if (!didPanRef.current) setSelected(event)
+  }
 
   if (events.length === 0) {
     return (
@@ -378,42 +511,8 @@ export default function TimelinePage() {
   }
 
   const selectedSnap = selected ? snapshotMap[selected.snapshotId] : null
-
-  const scrollRef = useRef(null)
-  const targetScrollRef = useRef(0)
-  const rafRef = useRef(null)
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    targetScrollRef.current = el.scrollLeft
-    const onWheel = (e) => {
-      if (e.deltaY === 0) return
-      e.preventDefault()
-      targetScrollRef.current = Math.max(
-        0,
-        Math.min(targetScrollRef.current + e.deltaY, el.scrollWidth - el.clientWidth)
-      )
-      if (rafRef.current) return
-      const animate = () => {
-        const diff = targetScrollRef.current - el.scrollLeft
-        if (Math.abs(diff) < 0.5) {
-          el.scrollLeft = targetScrollRef.current
-          rafRef.current = null
-          return
-        }
-        el.scrollLeft += diff * 0.12
-        rafRef.current = requestAnimationFrame(animate)
-      }
-      rafRef.current = requestAnimationFrame(animate)
-    }
-    el.addEventListener('wheel', onWheel, { passive: false })
-    return () => {
-      el.removeEventListener('wheel', onWheel)
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
-  }, [])
-
   const closePanel = () => setSelected(null)
+  const tl = timelineSizes(view.zoom)
 
   return (
     <div className="flex-1 flex flex-col bg-canvas overflow-hidden relative">
@@ -427,51 +526,75 @@ export default function TimelinePage() {
         ))}
       </div>
 
-      <div ref={scrollRef} className="flex-1 flex items-center overflow-x-auto">
-        <div className="flex items-start min-w-max px-16 py-12">
+      <div
+        ref={viewportRef}
+        className={`flex-1 relative overflow-hidden ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        onMouseDown={startPan}
+      >
+        <div
+          className="absolute top-0 left-0"
+          style={{ transform: `translate(${view.panX}px, ${view.panY}px)` }}
+        >
+          <div
+            ref={contentRef}
+            className="flex items-start min-w-max"
+            style={{ padding: `${tl.padY}px ${tl.padX}px` }}
+          >
           {events.map((event, i) => {
             const ts = formatTs(event.details.timestamp)
             const fileName = shortFileName(event.details.file_path)
             return (
-              <div key={i} className="flex items-center" ref={el => { itemRefs.current[i] = el }}>
+              <div key={i} className="flex items-center">
                 {i > 0 && (
                   <div className="flex flex-col items-center shrink-0">
-                    <div className="text-micro text-slate-500 mb-1">
+                    <div
+                      className="text-slate-500"
+                      style={{ fontSize: tl.fontMicro, marginBottom: tl.durMb }}
+                    >
                       {formatDuration(events[i - 1].details.timestamp, events[i].details.timestamp)}
                     </div>
                     <div className="flex items-center">
-                      <div className="w-14 h-px bg-edge" />
+                      <div className="h-px bg-edge" style={{ width: tl.connector }} />
                       <div style={{
                         width: 0, height: 0,
-                        borderTop: '4px solid transparent',
-                        borderBottom: '4px solid transparent',
-                        borderLeft: '7px solid #2d3748',
+                        borderTop: `${tl.arrowTop}px solid transparent`,
+                        borderBottom: `${tl.arrowBottom}px solid transparent`,
+                        borderLeft: `${tl.arrowLeft}px solid #2d3748`,
                       }} />
                     </div>
                   </div>
                 )}
                 <div
-                  className="flex flex-col items-center gap-2 cursor-pointer group select-none"
-                  onClick={() => setSelected(event)}
+                  className="flex flex-col items-center cursor-pointer select-none"
+                  style={{ gap: tl.gap }}
+                  onClick={() => selectEvent(event)}
                 >
-                  <div className="text-center max-w-40">
+                  <div className="text-center" style={{ maxWidth: tl.textMax }}>
                     <div
-                      className="text-xs font-mono font-bold leading-tight break-all"
-                      style={{ color: colorFor(event.type) }}
+                      className="font-mono font-bold leading-tight break-all"
+                      style={{ fontSize: tl.fontXs, color: colorFor(event.type) }}
                       title={event.details.file_path ?? ''}
                     >
                       {fileName}
                     </div>
                   </div>
                   <div
-                    className={`w-11 h-11 rounded-full border-2 shadow-lg transition-transform group-hover:scale-110 shrink-0 ${selected === event ? 'scale-110' : ''}`}
-                    style={{ backgroundColor: colorFor(event.type), borderColor: colorFor(event.type), ...(selected === event ? { outline: '2px solid white', outlineOffset: '3px' } : {}) }}
+                    className="rounded-full shadow-lg shrink-0 transition-[outline]"
+                    style={{
+                      width: tl.node,
+                      height: tl.node,
+                      borderWidth: tl.nodeBorder,
+                      borderStyle: 'solid',
+                      backgroundColor: colorFor(event.type),
+                      borderColor: colorFor(event.type),
+                      ...(selected === event ? { outline: `${tl.outline}px solid white`, outlineOffset: tl.outlineOffset } : {}),
+                    }}
                   />
-                  <div className="text-center max-w-40">
+                  <div className="text-center" style={{ maxWidth: tl.textMax }}>
                     {ts && (
                       <>
-                        <div className="text-detail text-slate-500 leading-tight">{ts.date}</div>
-                        <div className="text-detail text-slate-600 leading-tight">{ts.time}</div>
+                        <div className="text-slate-500 leading-tight" style={{ fontSize: tl.fontDetail }}>{ts.date}</div>
+                        <div className="text-slate-600 leading-tight" style={{ fontSize: tl.fontDetail }}>{ts.time}</div>
                       </>
                     )}
                   </div>
@@ -479,6 +602,29 @@ export default function TimelinePage() {
               </div>
             )
           })}
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-4 left-4 flex flex-col gap-2 z-10 font-sans w-52">
+        <button
+          type="button"
+          className="w-full py-2.5 rounded-lg cursor-pointer font-bold text-xs uppercase tracking-wide shadow-md transition bg-surface text-accent border border-accent hover:bg-edge"
+          onClick={fitTimeline}
+          onMouseDown={e => e.preventDefault()}
+        >
+          Fit Timeline
+        </button>
+        <button
+          type="button"
+          className="w-full py-2.5 rounded-lg cursor-pointer font-bold text-xs uppercase tracking-wide shadow-md transition bg-surface text-accent border border-accent hover:bg-edge"
+          onClick={resetView}
+          onMouseDown={e => e.preventDefault()}
+        >
+          Reset View
+        </button>
+        <div className="text-center text-tiny text-slate-500 tabular-nums">
+          {Math.round(view.zoom * 100)}%
         </div>
       </div>
 
