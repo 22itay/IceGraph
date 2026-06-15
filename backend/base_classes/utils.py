@@ -56,22 +56,17 @@ def qualify_table_name(catalog: str, namespace: str, table: str, default_catalog
     return f"{catalog}.{namespace}.{table}"
 
 
-def is_iceberg_table(spark: SparkSession, table_name: str) -> bool:
+def verify_iceberg_table(table_name: str) -> bool:
+    spark = SparkSession.builder.getOrCreate()
+
     with suppress(AnalysisException, AttributeError, IndexError):
         provider_row = (
             spark.sql(f"DESCRIBE FORMATTED {table_name}")
-            .filter("col_name = 'Provider'")
+            .filter(F.col("col_name") == "Provider")
             .collect()
         )
         if provider_row:
             return provider_row[0].data_type.lower().strip() == "iceberg"
-    return False
-
-
-def verify_iceberg_table(table_name: str) -> bool:
-    spark = SparkSession.builder.getOrCreate()
-    if is_iceberg_table(spark, table_name):
-        return True
 
     raise AnalysisException(f"Table '{table_name}' is not an Iceberg table.")
 
