@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/icegraph.png'
+import CatalogTableList from '../components/CatalogTableList'
 import JSONbig from 'json-bigint'
 
 export default function HomePage() {
@@ -29,10 +30,6 @@ export default function HomePage() {
     const params = new URLSearchParams({ table: tableName })
     navigate(`/snapshots-selection?${params.toString()}`)
   }
-
-  const filteredCatalogTables = catalogTables?.filter(name =>
-    name.toLowerCase().includes(catalogFilter.trim().toLowerCase()),
-  ) ?? []
 
   async function fetchCatalogTables() {
     setCatalogLoading(true)
@@ -104,46 +101,13 @@ export default function HomePage() {
                 <p className="mt-2 text-xs text-rose-400">{catalogError}</p>
               )}
 
-              {catalogTables && (
-                <div className="mt-3 border border-edge rounded-lg overflow-hidden">
-                  {catalogTables.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-slate-400">No tables found in the catalog.</p>
-                  ) : (
-                    <>
-                      <div className="px-3 py-2 border-b border-edge bg-surface-hover">
-                        <input
-                          type="text"
-                          value={catalogFilter}
-                          onChange={e => setCatalogFilter(e.target.value)}
-                          placeholder="Filter tables…"
-                          className="w-full border border-edge bg-edge rounded-md px-3 py-1.5 text-xs text-ink placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition"
-                        />
-                      </div>
-                      {filteredCatalogTables.length === 0 ? (
-                        <p className="px-3 py-2 text-xs text-slate-400">No tables match your filter.</p>
-                      ) : (
-                    <ul className="max-h-48 overflow-y-auto divide-y divide-edge">
-                      {filteredCatalogTables.map(name => (
-                        <li key={name}>
-                          <button
-                            type="button"
-                            onClick={() => selectCatalogTable(name)}
-                            className={`w-full text-left px-3 py-2 text-sm font-mono transition ${
-                              tableName === name
-                                ? 'bg-accent-muted text-ink'
-                                : 'text-slate-300 hover:bg-surface-hover hover:text-ink'
-                            }`}
-                          >
-                            {name}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
+              <CatalogTableList
+                tables={catalogTables}
+                selectedName={tableName}
+                onSelect={selectCatalogTable}
+                filter={catalogFilter}
+                onFilterChange={setCatalogFilter}
+              />
             </div>
 
             <button
